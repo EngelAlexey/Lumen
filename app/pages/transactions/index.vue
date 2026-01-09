@@ -1,0 +1,1 @@
+<template><div class="p-8"><h1>Módulo de Transacciones (Próximamente)</h1></div></template>

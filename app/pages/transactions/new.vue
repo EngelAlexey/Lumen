@@ -1,0 +1,1 @@
+<template><div class="p-8"><h1>Nueva Venta (Próximamente)</h1></div></template>
