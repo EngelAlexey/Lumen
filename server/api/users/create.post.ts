@@ -1,173 +1,100 @@
-import { serverSupabaseServiceRole, serverSupabaseUser } from '#supabase/server'
+import { serverSupabaseClient } from '#supabase/server'
+import { createClient } from '@supabase/supabase-js'
 
 export default defineEventHandler(async (event) => {
-    const supabaseAdmin = serverSupabaseServiceRole(event) as any
-    const user = await serverSupabaseUser(event)
+    const config = useRuntimeConfig(event)
+    const supabaseUrl = config.public.supabaseUrl
+    const serviceKey = config.supabaseServiceKey
+
+    // 1. Validación de Configuración
+    if (!supabaseUrl || !serviceKey) {
+        console.error('❌ Error Config: Faltan variables SUPABASE_URL o SUPABASE_SERVICE_KEY')
+        throw createError({ statusCode: 500, message: 'Server configuration error' })
+    }
+
+    // 2. OBTENER USUARIO (Forma Robusta)
+    // Usamos el cliente estándar para verificar el token de la petición
+    const client = await serverSupabaseClient(event)
+    const { data: { user: requesterUser }, error: userError } = await client.auth.getUser()
+
+    // Validamos explícitamente que exista el usuario Y su ID
+    if (userError || !requesterUser || !requesterUser.id) {
+        console.error('❌ Error Auth:', userError?.message || 'Usuario sin ID')
+        throw createError({ statusCode: 401, statusMessage: 'Unauthorized - Invalid Session' })
+    }
+
+    // 3. Inicializar Admin (Modo Dios)
+    const supabaseAdmin = createClient(supabaseUrl, serviceKey, {
+        auth: { autoRefreshToken: false, persistSession: false }
+    })
+
     const body = await readBody(event)
-
-    // Fallback: Manually parse cookie if serverSupabaseUser fails
-    if (!user || !user.id) {
-        const headers = getRequestHeaders(event)
-        const cookies = parseCookies(event)
-
-        // Try to find the auth token in cookies
-        // Pattern: sb-<reference_id>-auth-token
-        const authCookieName = Object.keys(cookies).find(name => name.startsWith('sb-') && name.endsWith('-auth-token'))
-        const authCookie = authCookieName ? cookies[authCookieName] : null
-
-        if (authCookie) {
-            try {
-                // The cookie is often a JSON object string (or base64 encoded JSON)
-                // Format: ["access_token","..."] or {"access_token":"..."} or "base64..."
-                // Based on user feedback: "base64-eyJ..."
-
-                let accessToken = ''
-
-                if (authCookie.startsWith('base64-')) {
-                    const jsonStr = Buffer.from(authCookie.substring(7), 'base64').toString('utf-8')
-                    const session = JSON.parse(jsonStr)
-                    accessToken = session.access_token
-                } else {
-                    // Try parsing as JSON directly just in case
-                    try {
-                        const session = JSON.parse(authCookie)
-                        accessToken = session.access_token
-                    } catch {
-                        // Maybe it's just the token? Unlikely for Supabase default
-                        accessToken = authCookie
-                    }
-                }
-
-                if (accessToken) {
-                    // Verify manually using Admin client
-                    const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(accessToken)
-
-                    if (userData && userData.user) {
-                        // Found user via fallback!
-                        // Reassign user variable (we need to declare it as let above or handle logic here)
-                        // Since 'user' is const, let's use a new variable for 'requester' logic
-                        // We will shadow 'user' logic below or refactor. 
-                        // To be safe, let's just create a 'requesterId' variable.
-                    }
-                }
-            } catch (e) {
-                console.error('Debug: Failed to parse fallback cookie', e)
-            }
-        }
-    }
-
-    // REFACTOR: Use a 'requesterUser' variable
-    let requesterUser = user
-
-    if (!requesterUser || !requesterUser.id) {
-        // Retry extraction for the scope of this variable
-        const cookies = parseCookies(event)
-        const authCookieName = Object.keys(cookies).find(name => name.startsWith('sb-') && name.endsWith('-auth-token'))
-        if (authCookieName) {
-            const authCookie = cookies[authCookieName]
-            let accessToken = ''
-            try {
-                if (authCookie.startsWith('base64-')) {
-                    const jsonStr = Buffer.from(authCookie.substring(7), 'base64').toString('utf-8')
-                    accessToken = JSON.parse(jsonStr).access_token
-                } else {
-                    accessToken = JSON.parse(authCookie).access_token
-                }
-
-                if (accessToken) {
-                    const { data, error } = await supabaseAdmin.auth.getUser(accessToken)
-                    if (data.user) requesterUser = data.user
-                }
-            } catch (e) { console.error('Token extraction error', e) }
-        }
-    }
-
-    if (!requesterUser || !requesterUser.id) {
-        console.error('Debug: Still no user after fallback.')
-        throw createError({
-            statusCode: 401,
-            statusMessage: 'Unauthorized: User ID missing (Session Invalid)'
-        })
-    }
-
-    // Use requesterUser.id instead of user.id below
-    const targetId = requesterUser.id
-
-
     const { email, password, fullName, phone, role } = body
 
     if (!email || !password || !fullName || !role) {
-        throw createError({
-            statusCode: 400,
-            statusMessage: 'Missing required fields'
-        })
+        throw createError({ statusCode: 400, statusMessage: 'Faltan campos requeridos' })
     }
 
-    // 1. Verify requester permissions
+    // 4. Buscar Perfil del Owner
+    // Ahora estamos 100% seguros de que requesterUser.id es un string válido
     const { data: requesterProfile, error: profileError } = await supabaseAdmin
         .from('users')
         .select('role, business_id')
-        .eq('id', targetId) // Use targetId resolved from fallback
+        .eq('id', requesterUser.id) // <--- Aquí fallaba antes
         .single()
 
     if (profileError || !requesterProfile) {
-        // Expose debug info to client (temporary for debugging)
-        const debugMsg = `Debug: UserID ${targetId} - Error: ${profileError?.message || 'No Profile'}`
-        console.error(debugMsg)
-
+        console.error('❌ Error buscando perfil para ID:', requesterUser.id, profileError)
         throw createError({
             statusCode: 403,
-            statusMessage: debugMsg
+            statusMessage: 'Perfil no encontrado',
+            message: 'No se pudo verificar el rol del usuario solicitante'
         })
     }
 
+    // 5. Validar Permisos
     const isOwner = requesterProfile.role === 'owner'
     const isManager = requesterProfile.role === 'manager'
 
     if (!isOwner && !isManager) {
-        throw createError({
-            statusCode: 403,
-            statusMessage: 'Insufficient permissions'
-        })
+        throw createError({ statusCode: 403, statusMessage: 'No tienes permisos para crear usuarios' })
     }
-
-    // 2. Validate role assignment
-    // Managers can only create cashiers or staff
     if (isManager && (role === 'owner' || role === 'manager')) {
-        throw createError({
-            statusCode: 403,
-            statusMessage: 'Managers can only create staff or cashiers'
-        })
+        throw createError({ statusCode: 403, statusMessage: 'Gerentes solo pueden crear staff/cajeros' })
     }
 
-    // 3. Create User in Supabase Auth
-    // We strictly inject the requester's business_id into the new user's metadata
-    // This allows the trigger handle_new_user to pick it up reliably
+    // 6. Crear el Nuevo Usuario (Auth)
     const { data: newUser, error: createAuthError } = await supabaseAdmin.auth.admin.createUser({
-        email: email,
-        password: password,
-        email_confirm: true, // Auto-confirm since admin created it
+        email,
+        password,
+        email_confirm: true,
         user_metadata: {
             full_name: fullName,
             phone: phone || null,
-            role: role,
-            business_id: requesterProfile.business_id // FORCE SAME BUSINESS
+            role,
+            business_id: requesterProfile.business_id
         }
     })
 
     if (createAuthError) {
-        console.error('Error creating user:', createAuthError)
-        throw createError({
-            statusCode: 400,
-            statusMessage: createAuthError.message
-        })
+        throw createError({ statusCode: 400, message: createAuthError.message })
     }
 
-    return {
-        success: true,
-        user: {
-            id: newUser.user.id,
-            email: newUser.user.email
-        }
+    // 7. Insertar en tabla pública (Respaldo explícito)
+    const { error: insertError } = await supabaseAdmin.from('users').upsert({
+        id: newUser.user.id,
+        email,
+        full_name: fullName,
+        role,
+        business_id: requesterProfile.business_id,
+        phone: phone || null
+    })
+
+    if (insertError) {
+        // Rollback: Si falla la tabla pública, borramos el usuario de Auth
+        await supabaseAdmin.auth.admin.deleteUser(newUser.user.id)
+        throw createError({ statusCode: 500, message: 'Error en tabla users: ' + insertError.message })
     }
+
+    return { success: true, user: newUser.user }
 })

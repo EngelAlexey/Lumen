@@ -4,34 +4,40 @@
       <NuxtLayout>
         <NuxtPage :page-key="route => route.fullPath" />
       </NuxtLayout>
+      <UNotifications />
     </div>
   </UApp>
 </template>
 
-<script setup>
+<script setup lang="ts">
 const route = useRoute()
-const supabase = useSupabaseClient()
 const router = useRouter()
+const user = useSupabaseUser()
+const client = useSupabaseClient()
+
+watch(user, (currentUser) => {
+  if (!currentUser && route.path !== '/login' && route.path !== '/register') {
+    router.push('/login')
+  }
+})
 
 onMounted(() => {
-  console.log('Lumen Platform Initialized')
-
-  const user = useSupabaseUser()
 
   document.addEventListener('visibilitychange', async () => {
-    if (document.visibilityState === 'visible') {
-      console.log('App woke up, checking session...')
+    if (document.visibilityState === 'visible') {      
+      const { data, error } = await client.auth.getSession()
       
-      if (!user.value) {
-        console.log('Sesión muerta, forzando recarga...')
+      if (error || !data.session) {
         window.location.href = '/login'
       }
     }
   })
 
-  supabase.auth.onAuthStateChange((event) => {
+  client.auth.onAuthStateChange((event) => {
     if (event === 'SIGNED_OUT') {
       router.push('/login')
+    }
+    if (event === 'TOKEN_REFRESHED') {
     }
   })
 })

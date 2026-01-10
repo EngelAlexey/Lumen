@@ -2,7 +2,7 @@
 import * as z from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
 
-const { getBusinessUsers, createUser, deleteUser } = useUsers()
+const { getBusinessUsers, createUser, deleteUser, updateUserFull } = useUsers()
 const { fetchCurrentRole, currentRole, getRoleLabel, getRoleColor } = useRoles()
 const toast = useToast()
 
@@ -32,6 +32,8 @@ const roles = [
   { label: 'Personal', value: 'staff' }
 ]
 
+const isOwner = computed(() => currentRole.value === 'owner')
+
 const columns = [
   {
     accessorKey: 'full_name',
@@ -44,6 +46,10 @@ const columns = [
   {
     accessorKey: 'role',
     header: 'Rol'
+  },
+  {
+    accessorKey: 'is_active',
+    header: 'Estado'
   },
   {
     id: 'actions',
@@ -82,8 +88,24 @@ async function handleCreateUser(event: FormSubmitEvent<any>) {
   saving.value = false
 }
 
+async function toggleUserStatus(row: any) {
+  const newState = !row.is_active
+  const action = newState ? 'activar' : 'desactivar'
+  
+  if (!confirm(`¿Deseas ${action} a este usuario?`)) return
+
+  const { success, error } = await updateUserFull(row.id, { is_active: newState })
+  
+  if (success) {
+    toast.add({ title: `Usuario ${action}do`, color: 'success' })
+    await loadUsers()
+  } else {
+    toast.add({ title: 'Error', description: error, color: 'error' })
+  }
+}
+
 async function handleDeleteUser(id: string) {
-  if (!confirm('¿Estás seguro de eliminar este usuario?')) return
+  if (!confirm('¿Estás seguro de eliminar permanentemente? Esta acción no se puede deshacer.')) return
   
   const { success, error } = await deleteUser(id)
   if (success) {
@@ -128,15 +150,40 @@ onMounted(async () => {
           </UBadge>
         </template>
         
+        <template #is_active-cell="{ row }">
+          <UBadge 
+            :color="row.original.is_active ? 'success' : 'error'" 
+            variant="solid" 
+            size="xs"
+          >
+            {{ row.original.is_active ? 'Activo' : 'Inactivo' }}
+          </UBadge>
+        </template>
+        
         <template #actions-cell="{ row }">
           <div class="flex justify-end gap-2">
-            <UButton 
-              color="error" 
-              variant="ghost" 
-              icon="i-heroicons-trash" 
-              size="xs"
-              @click="handleDeleteUser(row.original.id)"
-            />
+            
+            <UTooltip text="Cambiar estado">
+              <UButton 
+                v-if="row.original.role !== 'owner'"
+                :icon="row.original.is_active ? 'i-heroicons-no-symbol' : 'i-heroicons-check-circle'"
+                :color="row.original.is_active ? 'warning' : 'success'"
+                variant="ghost"
+                size="xs"
+                @click="toggleUserStatus(row.original)"
+              />
+            </UTooltip>
+
+            <UTooltip text="Eliminar permanentemente" v-if="isOwner && row.original.role !== 'owner'">
+              <UButton 
+                color="error" 
+                variant="ghost" 
+                icon="i-heroicons-trash" 
+                size="xs"
+                @click="handleDeleteUser(row.original.id)"
+              />
+            </UTooltip>
+            
           </div>
         </template>
       </UTable>
