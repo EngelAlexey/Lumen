@@ -236,7 +236,7 @@ export const useAuth = () => {
                 // Re-fetch user data after recovery attempt
                 const result = await supabase
                     .from('users')
-                    .select('business_id')
+                    .select('business_id, user_metadata')
                     .eq('id', userId)
                     .single()
 
