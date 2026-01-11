@@ -15,29 +15,39 @@ const router = useRouter()
 const user = useSupabaseUser()
 const client = useSupabaseClient()
 
+const publicRoutes = [
+  '/', 
+  '/login', 
+  '/register', 
+  '/pricing', 
+  '/forgot-password', 
+  '/update-password'
+]
+
+const isPublicRoute = (path: string) => {
+  return publicRoutes.some(p => path === p || path.startsWith(p + '/'))
+}
+
 watch(user, (currentUser) => {
-  if (!currentUser && route.path !== '/login' && route.path !== '/register') {
+  if (!currentUser && !isPublicRoute(route.path)) {
     router.push('/login')
   }
 })
 
 onMounted(() => {
-
   document.addEventListener('visibilitychange', async () => {
-    if (document.visibilityState === 'visible') {      
+    if (document.visibilityState === 'visible' && !isPublicRoute(route.path)) {      
       const { data, error } = await client.auth.getSession()
       
       if (error || !data.session) {
-        window.location.href = '/login'
+        router.push('/login')
       }
     }
   })
 
   client.auth.onAuthStateChange((event) => {
-    if (event === 'SIGNED_OUT') {
+    if (event === 'SIGNED_OUT' && !isPublicRoute(route.path)) {
       router.push('/login')
-    }
-    if (event === 'TOKEN_REFRESHED') {
     }
   })
 })

@@ -1,300 +1,297 @@
-import type { Database } from '~/types/database.types'
-
 export const useAuth = () => {
-    const supabase = useSupabaseClient<any>()
+    const client = useSupabaseClient<any>()
     const user = useSupabaseUser()
     const router = useRouter()
 
-    const register = async (userData: {
-        email: string
-        password: string
-        fullName: string
-        businessName: string
-        businessType: 'retail' | 'gastronomy' | 'services'
-        phone?: string
-        address?: string
-    }) => {
-        try {
-            console.log('1. Starting User Registration...')
+    const getBaseUrl = () => {
+        if (import.meta.server) {
+            const url = useRequestURL()
+            return url.origin
+        }
+        return window.location.origin
+    }
 
-            // 1. Create User via Auth
-            // Store business data in metadata for later creation (lazy creation)
-            const { data: authData, error: authError } = await supabase.auth.signUp({
-                email: userData.email,
-                password: userData.password,
+    const loading = useState<boolean>('auth_loading', () => false)
+    const error = useState<string | null>('auth_error', () => null)
+    const profile = useState<any>('auth_profile', () => null)
+    const business = useState<any>('auth_business', () => null)
+
+    const fetchProfile = async () => {
+        // Validación estricta para evitar errores 400 en Supabase
+        if (!user.value || !user.value.id) {
+            profile.value = null
+            business.value = null
+            return
+        }
+
+        try {
+            const { data: userData, error: userError } = await client
+                .from('users')
+                .select('*')
+                .eq('id', user.value.id)
+                .single()
+
+            if (userError && userError.code !== 'PGRST116') throw userError
+
+            profile.value = userData || null
+
+            if (userData?.business_id) {
+                const { data: businessData, error: businessError } = await client
+                    .from('businesses')
+                    .select('*')
+                    .eq('id', userData.business_id)
+                    .single()
+
+                if (businessError && businessError.code !== 'PGRST116') {
+                    console.error('Error fetching business:', businessError)
+                }
+                business.value = businessData
+            } else {
+                business.value = null
+            }
+
+        } catch (e: any) {
+            console.error('Error fetching profile:', e)
+        }
+    }
+
+    const waitForProfile = async (userId: string, attempts = 0): Promise<void> => {
+        if (!userId) return
+        if (attempts > 10) return
+
+        const { data } = await client
+            .from('users')
+            .select('id, business_id')
+            .eq('id', userId)
+            .maybeSingle()
+
+        if (data && data.business_id) {
+            return
+        } else {
+            await new Promise(resolve => setTimeout(resolve, 500))
+            return waitForProfile(userId, attempts + 1)
+        }
+    }
+
+    const register = async (data: any) => {
+        try {
+            loading.value = true
+            error.value = null
+
+            // En el flujo Registro -> Stripe, los datos de pago pueden ir nulos inicialmente
+            const metadata = {
+                full_name: data.fullName,
+                role: 'owner',
+                business_name: data.businessName,
+                business_type: data.businessType || 'retail',
+                stripe_customer_id: data.stripeCustomerId || null,
+                stripe_subscription_id: data.stripeSubscriptionId || null,
+                subscription_status: data.subscriptionStatus || 'trialing'
+            }
+
+            const { data: authData, error: authError } = await client.auth.signUp({
+                email: data.email,
+                password: data.password,
                 options: {
-                    data: {
-                        full_name: userData.fullName,
-                        phone: userData.phone || null,
-                        role: 'owner',
-                        business_name: userData.businessName,
-                        business_type: userData.businessType,
-                        business_address: userData.address || null
-                    }
+                    data: metadata,
+                    emailRedirectTo: `${getBaseUrl()}/login`
                 }
             })
 
             if (authError) throw authError
-            if (!authData.user) throw new Error('No user returned from signUp')
 
-            console.log('2. User created Auth ID:', authData.user.id)
-            console.log('3. Skipping immediate business creation to prevent FK race conditions.')
-
-            return { success: true, user: authData.user }
-
-        } catch (error: any) {
-            console.error('Registration error:', error)
-            return { success: false, error: error.message }
-        }
-    }
-
-    const ensureBusinessExists = async () => {
-        let user = useSupabaseUser()
-
-        // Robust session check
-        if (!user.value) {
-            const { data } = await supabase.auth.getSession()
-            if (data.session?.user) {
-                user.value = data.session.user as any
-            } else {
-                console.log('No user session found in ensureBusinessExists, skipping.')
-                return
-            }
-        }
-
-        // Final sanity check
-        if (!user.value) return
-
-        try {
-            // Check if business already exists for this owner
-            const { data: existingBusiness, error: existingError } = await supabase
-                .from('businesses')
-                .select('id')
-                .eq('owner_id', user.value.id)
-                .single()
-
-            if (existingBusiness) {
-                // If business exists but user_metadata.business_id is not set, update it
-                if (user.value && !user.value.user_metadata?.business_id) {
-                    await supabase.auth.updateUser({ data: { business_id: existingBusiness.id } })
+            if (authData.user) {
+                // Si la sesión se creó automáticamente, esperamos a que el trigger
+                // cree el negocio y luego CERRAMOS sesión para forzar el flujo hacia Login
+                if (authData.session) {
+                    await waitForProfile(authData.user.id)
+                    await client.auth.signOut()
                 }
-                return // All good, business already linked
+
+                return {
+                    ...authData,
+                    success: true,
+                    requiresLogin: true
+                }
             }
 
-            // If no existing business, check if the error is "no rows found" (PGRST116)
-            if (existingError && existingError.code !== 'PGRST116') {
-                throw existingError // Re-throw if it's a real error
-            }
-
-            // If no business found, create it from metadata
-            if (!user.value?.user_metadata) {
-                console.error('No user metadata found for deferred business creation')
-                return
-            }
-
-            const meta = user.value.user_metadata
-            console.log('Creating deferred business for:', meta)
-
-            // 1. Create Business via RPC
-            const { data: business, error: businessError } = await supabase
-                .rpc('create_initial_business', {
-                    p_name: meta.business_name || 'Mi Negocio',
-                    p_business_type: meta.business_type || 'retail',
-                    p_phone: meta.phone || null,
-                    p_address: meta.business_address || null
-                })
-                .single()
-
-            if (businessError) throw businessError
-
-            const biz = business as any
-            console.log('Deferred Business created ID:', biz.id)
-
-            // 2. Link Owner to the newly created business
-            const { error: updateError } = await supabase
-                .from('businesses')
-                .update({ owner_id: user.value.id })
-                .eq('id', biz.id)
-
-            if (updateError) throw updateError
-            console.log('Deferred Business linked to Owner successfully.')
-
-            // 3. Update user metadata with business_id (for session)
-            await supabase.auth.updateUser({
-                data: { business_id: biz.id }
-            })
-
-        } catch (e) {
-            console.error('Error ensuring business:', e)
+            return authData
+        } catch (e: any) {
+            console.error('Registration error:', e)
+            error.value = e.message || 'Error durante el registro'
+            throw e
+        } finally {
+            loading.value = false
         }
     }
 
-    const login = async (email: string, password: string) => {
+    const resendConfirmation = async (email: string) => {
         try {
-            const { data, error } = await supabase.auth.signInWithPassword({
-                email,
-                password
+            loading.value = true
+            error.value = null
+
+            const { error: err } = await client.auth.resend({
+                type: 'signup',
+                email: email,
+                options: {
+                    emailRedirectTo: `${getBaseUrl()}/login`
+                }
             })
 
-            if (error) throw error
+            if (err) throw err
+            return true
+        } catch (e: any) {
+            error.value = e.message || 'Error al reenviar correo'
+            throw e
+        } finally {
+            loading.value = false
+        }
+    }
 
-            return { success: true, user: data.user }
-        } catch (error: any) {
-            console.error('Login error:', error)
-            return { success: false, error: error.message }
+    const login = async (credentials: any) => {
+        try {
+            loading.value = true
+            error.value = null
+
+            // CORRECCIÓN: Validar que existan datos antes de enviarlos
+            if (!credentials.email) throw new Error('Por favor ingresa tu correo electrónico')
+            if (!credentials.password) throw new Error('Por favor ingresa tu contraseña')
+
+            const { data, error: authError } = await client.auth.signInWithPassword({
+                email: credentials.email,
+                password: credentials.password
+            })
+
+            if (authError) throw authError
+
+            await fetchProfile()
+
+            return data
+        } catch (e: any) {
+            console.error('Login error:', e)
+            error.value = e.message || 'Error al iniciar sesión'
+            throw e
+        } finally {
+            loading.value = false
         }
     }
 
     const logout = async () => {
         try {
-            await supabase.auth.signOut()
+            loading.value = true
+            const { error: err } = await client.auth.signOut()
+            if (err) throw err
+
+            profile.value = null
+            business.value = null
             router.push('/login')
-            return { success: true }
-        } catch (error: any) {
-            console.error('Logout error:', error)
-            return { success: false, error: error.message }
+        } catch (e: any) {
+            error.value = e.message
+        } finally {
+            loading.value = false
         }
     }
 
-    const getUserProfile = async () => {
+    const forgotPassword = async (email: string) => {
         try {
-            const { data, error } = await supabase
-                .rpc('get_current_user_profile')
-                .single()
+            loading.value = true
+            error.value = null
 
-            if (error) throw error
+            const baseUrl = getBaseUrl()
+            const redirectTo = `${baseUrl}/update-password`
 
-            const profileData = data as any
+            const { error: err } = await client.auth.resetPasswordForEmail(email, {
+                redirectTo
+            })
 
-            return {
-                success: true,
-                profile: {
-                    ...profileData,
-                    isTrialing: profileData.subscription_status === 'trialing',
-                    isPaid: profileData.subscription_status === 'active'
-                }
-            }
-        } catch (error: any) {
-            console.error('Get profile error:', error)
-            return { success: false, error: error.message }
+            if (err) throw err
+
+            return true
+        } catch (e: any) {
+            error.value = e.message
+            throw e
+        } finally {
+            loading.value = false
         }
     }
 
-    const updateProfile = async (updates: {
-        full_name?: string
-    }) => {
+    const updatePassword = async (newPassword: string) => {
         try {
-            const { data: sessionData } = await supabase.auth.getSession()
-            const userId = sessionData?.session?.user?.id
+            loading.value = true
+            error.value = null
 
-            if (!userId) {
-                return { success: false, error: 'No autenticado' }
+            const { error: err } = await client.auth.updateUser({
+                password: newPassword
+            })
+
+            if (err) throw err
+
+            return true
+        } catch (e: any) {
+            error.value = e.message
+            throw e
+        } finally {
+            loading.value = false
+        }
+    }
+
+    const updateProfile = async (updates: any) => {
+        try {
+            loading.value = true
+            error.value = null
+
+            if (!user.value?.id) throw new Error('No hay usuario autenticado')
+
+            if (updates.full_name) {
+                await client.auth.updateUser({
+                    data: { full_name: updates.full_name }
+                })
             }
 
-            const { error } = await supabase
+            const { error: updateError } = await client
                 .from('users')
                 .update(updates)
-                .eq('id', userId)
+                .eq('id', user.value.id)
 
-            if (error) throw error
+            if (updateError) throw updateError
 
-            return { success: true }
-        } catch (error: any) {
-            console.error('Update profile error:', error)
-            return { success: false, error: error.message }
+            await fetchProfile()
+
+            return true
+        } catch (e: any) {
+            error.value = e.message
+            throw e
+        } finally {
+            loading.value = false
         }
     }
 
-    const updateBusiness = async (updates: {
-        name?: string
-        phone?: string
-        address?: string
-        business_type?: string
-    }) => {
-        try {
-            const { data: sessionData } = await supabase.auth.getSession()
-            const userId = sessionData?.session?.user?.id
-
-            if (!userId) {
-                return { success: false, error: 'No autenticado' }
-            }
-
-            // 1. Get current user data to find business_id
-            let { data: userData, error: userError } = await supabase
-                .from('users')
-                .select('business_id, user_metadata')
-                .eq('id', userId)
-                .single()
-
-            const typedUser = userData as { business_id: any, user_metadata: any } | null
-
-            // 2. Auto-recovery: If no business_id, try to create/link it now
-            if (!userData?.business_id) {
-                console.warn('User has no business_id. Attempting auto-recovery...')
-                await ensureBusinessExists()
-
-                // Re-fetch user data after recovery attempt
-                const result = await supabase
-                    .from('users')
-                    .select('business_id, user_metadata')
-                    .eq('id', userId)
-                    .single()
-
-                userData = result.data
-                userError = result.error
-            }
-
-            if (userError || !userData?.business_id) {
-                console.error('Failed to resolve business_id even after recovery.')
-                throw new Error('Usuario sin negocio asignado. Contacte soporte.')
-            }
-
-            const { error } = await supabase
-                .from('businesses')
-                .update(updates)
-                .eq('id', userData.business_id)
-
-            if (error) throw error
-
-            return { success: true }
-        } catch (error: any) {
-            console.error('Update business error:', error)
-            return { success: false, error: error.message }
-        }
+    if (user.value?.id) {
+        fetchProfile()
     }
 
-    const getBusinessType = async () => {
-        try {
-            const { data: sessionData } = await supabase.auth.getSession()
-            const userId = sessionData?.session?.user?.id
-
-            if (!userId) return 'retail'
-
-            const { data, error } = await supabase
-                .from('users')
-                .select('business_id, businesses(business_type)')
-                .eq('id', userId)
-                .single()
-
-            if (error) throw error
-
-            const businessData = data as any
-            return businessData?.businesses?.business_type || 'retail'
-        } catch (error) {
-            console.warn('Error fetching business type, defaulting to retail', error)
-            return 'retail'
+    watch(user, async (newUser) => {
+        if (newUser && newUser.id) {
+            await fetchProfile()
+        } else {
+            profile.value = null
+            business.value = null
         }
-    }
+    })
 
     return {
         user,
-        register,
+        profile,
+        business,
+        loading,
+        error,
         login,
+        register,
+        resendConfirmation,
         logout,
-        getUserProfile,
-        updateProfile,
-        updateBusiness,
-        getBusinessType,
-        ensureBusinessExists
+        fetchProfile,
+        forgotPassword,
+        updatePassword,
+        updateProfile
     }
 }
