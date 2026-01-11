@@ -95,7 +95,9 @@ const userInitials = computed(() => {
   if (userProfile.value?.full_name) {
     const names = userProfile.value.full_name.split(' ')
     if (names.length > 1 && names[0] && names[names.length - 1]) {
-      return (names[0][0] + names[names.length - 1][0]).toUpperCase()
+      const firstInitial = names[0]?.[0] || ''
+      const lastInitial = names[names.length - 1]?.[0] || ''
+      return (firstInitial + lastInitial).toUpperCase()
     }
     return names[0]?.substring(0, 2).toUpperCase() || 'US'
   }
@@ -108,9 +110,9 @@ const userName = computed(() => {
 })
 
 const userRole = computed(() => {
+  if (currentRole.value) return getRoleLabel(currentRole.value)
   if (isLoading.value) return 'Cargando...'
-  if (!currentRole.value) return 'Sin Rol'
-  return getRoleLabel(currentRole.value)
+  return 'Sin Rol'
 })
 
 // Setup auth state change listener

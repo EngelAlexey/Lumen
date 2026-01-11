@@ -19,7 +19,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
     const { data: userData, error } = await client
         .from('users')
-        .select('business_id, subscription_status, business:businesses(subscription_status)')
+        .select('business_id')
         .eq('id', user.value.id)
         .single()
 
@@ -28,11 +28,21 @@ export default defineNuxtRouteMiddleware(async (to) => {
         return
     }
 
-    const businessStatus = (userData as any)?.business?.subscription_status
-    const userStatus = (userData as any)?.subscription_status
-    const status = businessStatus || userStatus // Fallback to user status if business join fails
+    let businessStatus = null
+    if ((userData as any).business_id) {
+        const { data: businessData, error: businessError } = await client
+            .from('businesses')
+            .select('subscription_status')
+            .eq('id', (userData as any).business_id)
+            .single()
 
-    const validStatuses = ['active', 'trialing']
+        if (!businessError) {
+            businessStatus = (businessData as any)?.subscription_status
+        }
+    }
+    const status = businessStatus
+
+    const validStatuses = ['active']
 
     if (!status || !validStatuses.includes(status)) {
         console.warn('Middleware: Invalid subscription status. Redirecting.')

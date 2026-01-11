@@ -24,6 +24,7 @@ export default defineEventHandler(async (event) => {
     }
 
     const body = await readBody(event)
+    console.log('CREATE-PAYMENT: Received body:', body)
     const { transactionId } = body
 
     if (!transactionId) {
