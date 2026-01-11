@@ -39,8 +39,11 @@ export default defineNuxtConfig({
   runtimeConfig: {
     supabaseServiceKey: process.env.SUPABASE_SERVICE_KEY,
     stripeSecretKey: process.env.STRIPE_SECRET_KEY,
+    stripePriceSolo: process.env.STRIPE_PRICE_SOLO || 'price_1SoEXdEKONx2SQOvKf2bKkxx',
+    stripePriceStartup: process.env.STRIPE_PRICE_STARTUP || 'price_1SoETwEKONx2SQOvVwwEbA6G',
 
     public: {
+      siteUrl: process.env.SITE_URL || 'http://localhost:3000',
       supabaseUrl: process.env.SUPABASE_URL,
       supabaseKey: process.env.SUPABASE_KEY,
       stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY

@@ -4,11 +4,12 @@ import type { Product } from '~/types/database.types'
 // Composables
 const { currentSession, fetchCurrentSession, loading: sessionLoading, fetchPaymentMethods, paymentMethods } = useCashRegister()
 const { getProducts } = useProducts()
-const { createTransaction, loading: transactionLoading } = useTransactions()
+const { createTransaction, createStripePayment, loading: transactionLoading } = useTransactions()
 const { labels, features, loadBusinessType } = useBusinessConfig()
 const cart = useCart()
 const toast = useToast()
 const router = useRouter()
+const supabase = useSupabaseClient()
 
 // State
 const products = ref<Product[]>([])
@@ -18,13 +19,47 @@ const selectedCategory = ref<string | null>(null)
 const selectedPaymentMethod = ref<string | null>(null)
 const paymentReference = ref('')
 const customerName = ref('')
+const customerId = ref<string | null>(null) // New
 const tableNumber = ref('')
 const notes = ref('')
 
 // Modals
 const showPaymentModal = ref(false)
 const showSuccessModal = ref(false)
+const showStripeModal = ref(false) // New
+const stripeLink = ref('') // New
 const lastTransactionNumber = ref('')
+
+// Customer Search
+const customerSearchQuery = ref('')
+const customerSearchResults = ref<any[]>([])
+const searchingCustomers = ref(false)
+
+async function searchCustomers(query: string) {
+  if (!query || query.length < 2) {
+    customerSearchResults.value = []
+    return
+  }
+  searchingCustomers.value = true
+  const { data } = await supabase
+    .from('customers')
+    .select('id, full_name, email')
+    .ilike('full_name', `%${query}%`)
+    .limit(5)
+  customerSearchResults.value = data || []
+  searchingCustomers.value = false
+}
+
+watch(customerSearchQuery, (val) => {
+    searchCustomers(val)
+})
+
+function selectCustomer(customer: any) {
+    customerId.value = customer.id
+    customerName.value = customer.full_name
+    customerSearchQuery.value = customer.full_name
+    customerSearchResults.value = []
+}
 
 // Computed: Filtered products
 const filteredProducts = computed(() => {
@@ -268,6 +303,61 @@ function continueSelling() {
   showSuccessModal.value = false
 }
 
+// Generar Pago Online (Stripe)
+async function generateOnlinePayment() {
+  if (cart.isEmpty) {
+    toast.add({ title: 'Carrito Vacío', description: 'Agrega productos antes de generar link', color: 'warning' })
+    return
+  }
+  
+  if (!currentSession.value?.id) {
+    toast.add({ title: 'Error', description: 'No hay sesión de caja activa', color: 'error' })
+    return
+  }
+
+  // 1. Crear transacción pendiente
+  const result = await createTransaction({
+    cashSessionId: currentSession.value.id,
+    items: cart.items,
+    customerId: customerId.value || undefined, // Link customer
+    customerName: customerName.value || undefined, // Fallback name
+    tableNumber: tableNumber.value || undefined,
+    notes: notes.value || undefined,
+    status: 'pending',
+    paymentMethod: 'stripe_checkout', // Intention
+    deliveryStatus: 'pending' // Default for remote
+  })
+
+  if (!result.success || !result.transactionId) {
+    toast.add({ title: 'Error al crear orden', description: result.error, color: 'error' })
+    return
+  }
+
+  // 2. Generar Link de Stripe
+  const stripeResult = await createStripePayment(result.transactionId)
+  
+  if (stripeResult.success && stripeResult.url) {
+      stripeLink.value = stripeResult.url
+      lastTransactionNumber.value = result.transactionNumber || ''
+      showStripeModal.value = true
+      
+      // Limpiar UI principal (la orden ya existe)
+      cart.clearCart()
+      customerName.value = ''
+      customerId.value = null
+      customerSearchQuery.value = ''
+      tableNumber.value = ''
+      notes.value = ''
+  } else {
+      toast.add({ title: 'Error Stripe', description: stripeResult.error, color: 'error' })
+  }
+}
+
+function copyStripeLink() {
+    navigator.clipboard.writeText(stripeLink.value)
+    toast.add({ title: 'Copiado', description: 'Link copiado al portapapeles', color: 'success' })
+}
+
 function goToHistory() {
   router.push('/transactions')
 }
@@ -321,6 +411,33 @@ function goToHistory() {
             placeholder="Categoría"
             class="w-48"
           />
+        </div>
+        
+        <!-- Customer Selector (Quick) -->
+        <div class="mb-4 relative z-10">
+            <div class="flex gap-2">
+                <div class="relative flex-1">
+                    <UInput
+                        v-model="customerSearchQuery"
+                        placeholder="Buscar Cliente (Nombre/Tel)"
+                        icon="i-heroicons-user"
+                        :loading="searchingCustomers"
+                    />
+                    <!-- Results Dropdown -->
+                    <div v-if="customerSearchResults.length > 0" class="absolute top-full left-0 w-full bg-white dark:bg-gray-800 shadow-xl border border-gray-200 dark:border-gray-700 rounded-lg mt-1 overflow-hidden">
+                        <button
+                            v-for="c in customerSearchResults"
+                            :key="c.id"
+                            class="w-full text-left px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 flex justify-between items-center"
+                            @click="selectCustomer(c)"
+                        >
+                            <span class="font-medium text-sm">{{ c.full_name }}</span>
+                            <span class="text-xs text-gray-500">{{ c.email }}</span>
+                        </button>
+                    </div>
+                </div>
+                <UButton v-if="customerId" color="neutral" icon="i-heroicons-x-mark" variant="ghost" @click="selectCustomer({id: null, full_name: ''})" />
+            </div>
         </div>
 
         <!-- Products Grid -->
@@ -444,17 +561,31 @@ function goToHistory() {
             <span class="text-primary-600">₡{{ cart.total.toLocaleString() }}</span>
           </div>
 
-          <UButton
-            block
-            size="xl"
-            color="primary"
-            icon="i-heroicons-banknotes"
-            :disabled="cart.isEmpty"
-            class="mt-4"
-            @click="openPaymentModal"
-          >
-            Cobrar ₡{{ cart.total.toLocaleString() }}
-          </UButton>
+          <div class="grid grid-cols-2 gap-3 mt-4">
+            <UButton
+                block
+                size="xl"
+                color="neutral"
+                variant="solid"
+                icon="i-heroicons-globe-alt"
+                :loading="transactionLoading"
+                :disabled="cart.isEmpty"
+                @click="generateOnlinePayment"
+            >
+                Pago Online
+            </UButton>
+            
+            <UButton
+                block
+                size="xl"
+                color="primary"
+                icon="i-heroicons-banknotes"
+                :disabled="cart.isEmpty"
+                @click="openPaymentModal"
+            >
+                Cobrar ₡{{ cart.total.toLocaleString() }}
+            </UButton>
+          </div>
           
           <!-- Botón para guardar como cuenta pendiente (solo si feature pendingOrders está activo) -->
           <UButton
@@ -564,4 +695,41 @@ function goToHistory() {
       </template>
     </UModal>
   </div>
+
+    <!-- Stripe Link Modal -->
+    <UModal v-model:open="showStripeModal">
+      <template #body>
+        <div class="p-6 space-y-4 text-center">
+            <div class="w-16 h-16 mx-auto bg-indigo-100 rounded-full flex items-center justify-center">
+                <UIcon name="i-heroicons-qr-code" class="w-8 h-8 text-indigo-600" />
+            </div>
+            
+            <h3 class="text-xl font-bold">Pago Online Generado</h3>
+            <p class="text-gray-500 text-sm">Comparte este enlace con el cliente para completar el pago.</p>
+            
+            <div class="p-3 bg-gray-50 dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 break-all text-sm font-mono text-gray-600">
+                {{ stripeLink }}
+            </div>
+            
+            <div class="flex gap-2 justify-center">
+                 <UButton color="neutral" icon="i-heroicons-clipboard" @click="copyStripeLink">
+                    Copiar Link
+                 </UButton>
+                 <a :href="`https://wa.me/?text=Hola, aquí tienes tu link de pago: ${encodeURIComponent(stripeLink)}`" target="_blank" class="no-underline">
+                     <UButton color="neutral" icon="i-heroicons-chat-bubble-left-right">
+                        WhatsApp
+                     </UButton>
+                 </a>
+            </div>
+            
+            <div class="pt-4 border-t border-gray-100 mt-4">
+                <p class="text-xs text-gray-400 mb-2">Orden #{{ lastTransactionNumber }} - Pendiente de Pago</p>
+                <UButton block variant="ghost" color="neutral" @click="showStripeModal = false">
+                    Cerrar y Ver Historial
+                </UButton>
+            </div>
+        </div>
+      </template>
+    </UModal>
+
 </template>

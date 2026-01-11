@@ -112,18 +112,25 @@ export interface Database {
                     cash_session_id: string | null
                     transaction_number: string
                     status: 'pending' | 'delivered' | 'paid' | 'cancelled'
+                    delivery_status: 'pending' | 'preparing' | 'ready' | 'in_route' | 'delivered' | 'cancelled'
+                    payment_method: 'cash' | 'card_manual' | 'stripe_checkout' | 'transfer' | 'other'
                     subtotal: number
                     tax: number
                     discount: number
                     total: number
                     payment_method_id: string | null
                     payment_reference: string | null
+                    customer_id: string | null
                     customer_name: string | null
                     customer_phone: string | null
                     table_number: string | null
                     served_by: string | null
                     notes: string | null
                     delivery_date: string | null
+                    stripe_checkout_session_id: string | null
+                    stripe_payment_intent_id: string | null
+                    stripe_payment_url: string | null
+                    shipping_address: string | null
                     created_at: string
                     delivered_at: string | null
                     paid_at: string | null
@@ -136,18 +143,25 @@ export interface Database {
                     cash_session_id?: string | null
                     transaction_number?: string
                     status?: 'pending' | 'delivered' | 'paid' | 'cancelled'
+                    delivery_status?: 'pending' | 'preparing' | 'ready' | 'in_route' | 'delivered' | 'cancelled'
+                    payment_method?: 'cash' | 'card_manual' | 'stripe_checkout' | 'transfer' | 'other'
                     subtotal?: number
                     tax?: number
                     discount?: number
                     total?: number
                     payment_method_id?: string | null
                     payment_reference?: string | null
+                    customer_id?: string | null
                     customer_name?: string | null
                     customer_phone?: string | null
                     table_number?: string | null
                     served_by?: string | null
                     notes?: string | null
                     delivery_date?: string | null
+                    stripe_checkout_session_id?: string | null
+                    stripe_payment_intent_id?: string | null
+                    stripe_payment_url?: string | null
+                    shipping_address?: string | null
                     created_at?: string
                     delivered_at?: string | null
                     paid_at?: string | null
@@ -250,51 +264,87 @@ export interface Database {
                     updated_at?: string
                 }
             }
-        }
-        Views: {
-            [_: string]: {
+
+            // ===== CUSTOMERS =====
+            customers: {
                 Row: {
-                    [key: string]: any
-                }
-            }
-        }
-        Functions: {
-            create_initial_business: {
-                Args: {
-                    p_name: string
-                    p_business_type: string
-                    p_phone?: string
-                    p_address?: string
-                }
-                Returns: {
                     id: string
-                    name: string
-                    business_type: string
-                    owner_id: string | null
+                    business_id: string
+                    full_name: string
                     phone: string | null
+                    email: string | null
                     address: string | null
+                    notes: string | null
                     created_at: string
                     updated_at: string
                 }
-            }
-            get_current_user_profile: {
-                Args: Record<string, never>
-                Returns: {
-                    id: string
-                    email: string
-                    full_name: string
-                    role: string
+                Insert: {
+                    id?: string
                     business_id: string
-                    business_name: string
-                    business_type: string
-                    subscription_status?: string
+                    full_name: string
+                    phone?: string | null
+                    email?: string | null
+                    address?: string | null
+                    notes?: string | null
+                    created_at?: string
+                    updated_at?: string
                 }
+                Update: {
+                    id?: string
+                    business_id?: string
+                    full_name?: string
+                    phone?: string | null
+                    email?: string | null
+                    address?: string | null
+                    notes?: string | null
+                    created_at?: string
+                    updated_at?: string
+                }
+            }
+        }
+    }
+    Views: {
+        [_: string]: {
+            Row: {
+                [key: string]: any
+            }
+        }
+    }
+    Functions: {
+        create_initial_business: {
+            Args: {
+                p_name: string
+                p_business_type: string
+                p_phone?: string
+                p_address?: string
+            }
+            Returns: {
+                id: string
+                name: string
+                business_type: string
+                owner_id: string | null
+                phone: string | null
+                address: string | null
+                created_at: string
+                updated_at: string
+            }
+        }
+        get_current_user_profile: {
+            Args: Record<string, never>
+            Returns: {
+                id: string
+                email: string
+                full_name: string
+                role: string
+                business_id: string
+                business_name: string
+                business_type: string
+                subscription_status?: string
             }
         }
     }
 }
 
-// ===== TYPE EXPORTS =====
 export type CashSession = Database['public']['Tables']['cash_sessions']['Row']
 export type CashSessionInsert = Database['public']['Tables']['cash_sessions']['Insert']
 
@@ -311,3 +361,6 @@ export type TransactionItemInsert = Database['public']['Tables']['transaction_it
 
 export type User = Database['public']['Tables']['users']['Row']
 export type Business = Database['public']['Tables']['businesses']['Row']
+
+export type Customer = Database['public']['Tables']['customers']['Row']
+export type CustomerInsert = Database['public']['Tables']['customers']['Insert']

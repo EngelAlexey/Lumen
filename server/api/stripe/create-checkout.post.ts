@@ -4,7 +4,7 @@ import { serverSupabaseUser, serverSupabaseClient } from '#supabase/server'
 export default defineEventHandler(async (event) => {
     const config = useRuntimeConfig()
     const stripe = new Stripe(config.stripeSecretKey, {
-        apiVersion: '2025-01-27' as any,
+        apiVersion: '2025-12-15.clover',
     })
 
     const user = await serverSupabaseUser(event)
@@ -19,9 +19,9 @@ export default defineEventHandler(async (event) => {
     const { plan } = body
 
     const priceMap: Record<string, string> = {
-        'solo': 'price_placeholder_solo',
-        'startup': 'price_placeholder_startup',
-        'organization': 'price_placeholder_organization'
+        'solo': config.stripePriceSolo,
+        'startup': config.stripePriceStartup,
+        // 'organization': 'price_placeholder_organization' // Contact sales
     }
 
     const priceId = priceMap[plan.toLowerCase()]
@@ -59,6 +59,7 @@ export default defineEventHandler(async (event) => {
     }
 
     try {
+        console.log('Creating Stripe session for customer:', customerId, 'Plan:', plan)
         const session = await stripe.checkout.sessions.create({
             customer: customerId,
             payment_method_types: ['card'],
@@ -69,6 +70,7 @@ export default defineEventHandler(async (event) => {
                 },
             ],
             mode: 'subscription',
+            allow_promotion_codes: true,
             subscription_data: {
                 trial_period_days: 14,
                 metadata: {
@@ -80,8 +82,10 @@ export default defineEventHandler(async (event) => {
             cancel_url: `${config.public.siteUrl}/pricing?canceled=true`,
         })
 
+        console.log('Stripe session created:', session.url)
         return { url: session.url }
     } catch (error: any) {
+        console.error('Stripe Checkout Error:', error)
         throw createError({
             statusCode: 500,
             message: error.message

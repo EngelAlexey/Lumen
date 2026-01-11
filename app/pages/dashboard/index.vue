@@ -199,7 +199,14 @@ const viewReports = () => {
 const manageProdcuts = () => {
   router.push('/products')
 }
+const { ensureBusinessExists } = useAuth()
+
+onMounted(async () => {
+    await ensureBusinessExists()
+    // existing mock data logic or fetch real data
+})
 </script>
+
 
 <style scoped>
 .dashboard {

@@ -31,6 +31,14 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
     const result = await login(event.data.email, event.data.password)
     
     if (result.success) {
+      // Wait for user state to propagate to composable to avoid middleware redirect loop
+      const user = useSupabaseUser()
+      let attempts = 0
+      while (!user.value && attempts < 10) {
+        await new Promise(resolve => setTimeout(resolve, 100))
+        attempts++
+      }
+      
       toast.add({ title: '¡Bienvenido!', color: 'success' })
       router.push('/dashboard')
     } else {

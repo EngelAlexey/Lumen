@@ -8,7 +8,15 @@ export const useRoles = () => {
     const user = useSupabaseUser()
 
     const fetchCurrentRole = async (userId?: string) => {
-        const id = userId || user.value?.id
+        let id = userId || user.value?.id
+
+        if (!id) {
+            const { data } = await supabase.auth.getSession()
+            if (data.session?.user) {
+                id = data.session.user.id
+            }
+        }
+
         if (!id) {
             console.warn('[useRoles] No user ID available')
             return null

@@ -137,6 +137,31 @@ function getProductNames(items: any[]): string {
   return items.map((i: any) => i.product_name).join(', ')
 }
 
+function formatPaymentEnum(method: string | null) {
+    if (!method) return '-'
+    const map: Record<string, string> = {
+        'cash': 'Efectivo',
+        'card_manual': 'Tarjeta',
+        'stripe_checkout': 'Stripe (Online)',
+        'transfer': 'Transferencia',
+        'other': 'Otro'
+    }
+    return map[method] || method
+}
+
+function formatDeliveryStatus(status: string | null) {
+    if (!status) return ''
+    const map: Record<string, string> = {
+        'pending': 'Pendiente',
+        'preparing': 'Preparando',
+        'ready': 'Listo',
+        'in_route': 'En Ruta',
+        'delivered': 'Entregado',
+        'cancelled': 'Cancelado'
+    }
+    return map[status] || status
+}
+
 watch(statusFilter, () => loadTransactions())
 
 onMounted(() => {
@@ -215,12 +240,12 @@ onMounted(() => {
     <UCard>
       <UTable :columns="columns" :data="transactions" :loading="loading">
         <template #transaction_number-cell="{ row }">
-          <button 
+          <NuxtLink 
+            :to="`/transactions/${row.original.id}`"
             class="font-mono font-medium text-primary-600 hover:underline cursor-pointer"
-            @click="toggleRow(row.original.id)"
           >
             {{ row.original.transaction_number }}
-          </button>
+          </NuxtLink>
         </template>
 
         <template #created_at-cell="{ row }">
@@ -237,11 +262,16 @@ onMounted(() => {
         </template>
 
         <template #products-cell="{ row }">
-          <div v-if="(row.original as any).transaction_items?.length" class="max-w-xs truncate">
-            <span class="text-sm text-gray-600 dark:text-gray-400">
-              {{ getProductNames((row.original as any).transaction_items).substring(0, 40) }}
-              <span v-if="getProductNames((row.original as any).transaction_items).length > 40">...</span>
-            </span>
+          <div v-if="(row.original as any).transaction_items?.length" class="max-w-xs flex flex-wrap gap-1">
+            <template v-for="(item, index) in (row.original as any).transaction_items" :key="item.id">
+                <span v-if="(index as number) > 0" class="text-gray-400">, </span>
+                <NuxtLink 
+                    :to="`/products?edit=${item.product_id}`"
+                    class="text-sm text-primary-600 dark:text-primary-400 hover:underline"
+                >
+                    {{ item.product_name }}
+                </NuxtLink>
+            </template>
           </div>
           <span v-else class="text-sm text-gray-400">-</span>
         </template>
@@ -251,20 +281,40 @@ onMounted(() => {
         </template>
 
         <template #status-cell="{ row }">
-          <button @click="openStatusModal(row.original)">
-            <UBadge 
-              :color="statusColors[row.original.status] || 'neutral'" 
-              variant="subtle"
-              class="cursor-pointer hover:opacity-80"
-            >
-              {{ statusLabels[row.original.status] || row.original.status }}
-            </UBadge>
-          </button>
+          <div class="flex flex-col gap-1 items-start">
+              <button 
+                :disabled="['paid', 'cancelled'].includes(row.original.status)"
+                :class="['paid', 'cancelled'].includes(row.original.status) ? 'cursor-default' : 'cursor-pointer hover:opacity-80'"
+                @click="!['paid', 'cancelled'].includes(row.original.status) && openStatusModal(row.original)"
+              >
+                <UBadge 
+                  :color="statusColors[row.original.status] || 'neutral'" 
+                  variant="subtle"
+                >
+                  {{ statusLabels[row.original.status] || row.original.status }}
+                </UBadge>
+              </button>
+              
+              <!-- Only show delivery status if it's explicitly set to something interesting 
+                   AND distinct from the main status. 
+                   If status is 'pending', delivery 'pending' is redundant.
+              -->
+              <UBadge 
+                v-if="row.original.delivery_status && 
+                      row.original.delivery_status !== 'delivered' && 
+                      row.original.delivery_status !== 'pending'"
+                color="info" 
+                variant="outline" 
+                size="xs"
+              >
+                {{ formatDeliveryStatus(row.original.delivery_status) }}
+              </UBadge>
+          </div>
         </template>
 
         <template #payment_methods-cell="{ row }">
           <span class="text-sm text-gray-600 dark:text-gray-400">
-            {{ (row.original as any).payment_methods?.name || '-' }}
+            {{ (row.original as any).payment_methods?.name || formatPaymentEnum((row.original as any).payment_method) }}
           </span>
         </template>
 
@@ -280,14 +330,20 @@ onMounted(() => {
             >
               Cobrar
             </UButton>
+            
+            <UTooltip text="Ver Recibo">
+                <UButton 
+                    :to="`/transactions/${row.original.id}`"
+                    variant="ghost" 
+                    color="neutral" 
+                    icon="i-heroicons-document-text" 
+                    size="xs" 
+                />
+            </UTooltip>
+            
+            <!-- Hide edit status button if final state -->
             <UButton 
-              variant="ghost" 
-              color="neutral" 
-              icon="i-heroicons-eye" 
-              size="xs" 
-              @click="toggleRow(row.original.id)" 
-            />
-            <UButton 
+              v-if="!['paid', 'cancelled'].includes(row.original.status)"
               variant="ghost" 
               color="neutral" 
               icon="i-heroicons-pencil-square" 

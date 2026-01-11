@@ -15,19 +15,10 @@ export const useAuth = () => {
         address?: string
     }) => {
         try {
-            const { data: business, error: businessError } = await supabase
-                .rpc('create_initial_business', {
-                    p_name: userData.businessName,
-                    p_business_type: userData.businessType,
-                    p_phone: userData.phone || null,
-                    p_address: userData.address || null
-                })
-                .single()
+            console.log('1. Starting User Registration...')
 
-            if (businessError) throw businessError
-
-            const biz = business as any
-
+            // 1. Create User via Auth
+            // Store business data in metadata for later creation (lazy creation)
             const { data: authData, error: authError } = await supabase.auth.signUp({
                 email: userData.email,
                 password: userData.password,
@@ -36,22 +27,105 @@ export const useAuth = () => {
                         full_name: userData.fullName,
                         phone: userData.phone || null,
                         role: 'owner',
-                        business_id: biz.id
+                        business_name: userData.businessName,
+                        business_type: userData.businessType,
+                        business_address: userData.address || null
                     }
                 }
             })
 
             if (authError) throw authError
+            if (!authData.user) throw new Error('No user returned from signUp')
 
-            await supabase
-                .from('businesses')
-                .update({ owner_id: authData.user?.id })
-                .eq('id', biz.id)
+            console.log('2. User created Auth ID:', authData.user.id)
+            console.log('3. Skipping immediate business creation to prevent FK race conditions.')
 
             return { success: true, user: authData.user }
+
         } catch (error: any) {
             console.error('Registration error:', error)
             return { success: false, error: error.message }
+        }
+    }
+
+    const ensureBusinessExists = async () => {
+        let user = useSupabaseUser()
+
+        // Robust session check
+        if (!user.value) {
+            const { data } = await supabase.auth.getSession()
+            if (data.session?.user) {
+                user.value = data.session.user as any
+            } else {
+                console.log('No user session found in ensureBusinessExists, skipping.')
+                return
+            }
+        }
+
+        // Final sanity check
+        if (!user.value) return
+
+        try {
+            // Check if business already exists for this owner
+            const { data: existingBusiness, error: existingError } = await supabase
+                .from('businesses')
+                .select('id')
+                .eq('owner_id', user.value.id)
+                .single()
+
+            if (existingBusiness) {
+                // If business exists but user_metadata.business_id is not set, update it
+                if (user.value && !user.value.user_metadata?.business_id) {
+                    await supabase.auth.updateUser({ data: { business_id: existingBusiness.id } })
+                }
+                return // All good, business already linked
+            }
+
+            // If no existing business, check if the error is "no rows found" (PGRST116)
+            if (existingError && existingError.code !== 'PGRST116') {
+                throw existingError // Re-throw if it's a real error
+            }
+
+            // If no business found, create it from metadata
+            if (!user.value?.user_metadata) {
+                console.error('No user metadata found for deferred business creation')
+                return
+            }
+
+            const meta = user.value.user_metadata
+            console.log('Creating deferred business for:', meta)
+
+            // 1. Create Business via RPC
+            const { data: business, error: businessError } = await supabase
+                .rpc('create_initial_business', {
+                    p_name: meta.business_name || 'Mi Negocio',
+                    p_business_type: meta.business_type || 'retail',
+                    p_phone: meta.phone || null,
+                    p_address: meta.business_address || null
+                })
+                .single()
+
+            if (businessError) throw businessError
+
+            const biz = business as any
+            console.log('Deferred Business created ID:', biz.id)
+
+            // 2. Link Owner to the newly created business
+            const { error: updateError } = await supabase
+                .from('businesses')
+                .update({ owner_id: user.value.id })
+                .eq('id', biz.id)
+
+            if (updateError) throw updateError
+            console.log('Deferred Business linked to Owner successfully.')
+
+            // 3. Update user metadata with business_id (for session)
+            await supabase.auth.updateUser({
+                data: { business_id: biz.id }
+            })
+
+        } catch (e) {
+            console.error('Error ensuring business:', e)
         }
     }
 
@@ -145,13 +219,35 @@ export const useAuth = () => {
                 return { success: false, error: 'No autenticado' }
             }
 
-            const { data: userData, error: userError } = await supabase
+            // 1. Get current user data to find business_id
+            let { data: userData, error: userError } = await supabase
                 .from('users')
-                .select('business_id')
+                .select('business_id, user_metadata')
                 .eq('id', userId)
                 .single()
 
-            if (userError || !userData?.business_id) throw new Error('Usuario sin negocio asignado')
+            const typedUser = userData as { business_id: any, user_metadata: any } | null
+
+            // 2. Auto-recovery: If no business_id, try to create/link it now
+            if (!userData?.business_id) {
+                console.warn('User has no business_id. Attempting auto-recovery...')
+                await ensureBusinessExists()
+
+                // Re-fetch user data after recovery attempt
+                const result = await supabase
+                    .from('users')
+                    .select('business_id')
+                    .eq('id', userId)
+                    .single()
+
+                userData = result.data
+                userError = result.error
+            }
+
+            if (userError || !userData?.business_id) {
+                console.error('Failed to resolve business_id even after recovery.')
+                throw new Error('Usuario sin negocio asignado. Contacte soporte.')
+            }
 
             const { error } = await supabase
                 .from('businesses')
@@ -198,6 +294,7 @@ export const useAuth = () => {
         getUserProfile,
         updateProfile,
         updateBusiness,
-        getBusinessType
+        getBusinessType,
+        ensureBusinessExists
     }
 }

@@ -51,7 +51,9 @@ async function handleOpenSession() {
 
 async function handleCloseSession() {
   processing.value = true
-  const { success, error, summary } = await closeSession(closingAmount.value, closingNotes.value)
+  // Automatic final calculation
+  const finalAmount = expectedCash.value
+  const { success, error, summary } = await closeSession(finalAmount, closingNotes.value)
   processing.value = false
 
   if (success) {
@@ -204,37 +206,17 @@ async function handleCloseSession() {
               
               <span class="text-gray-500 pl-2">• Transferencia:</span>
               <span class="text-right">₡{{ sessionSummary.transferSales?.toLocaleString() }}</span>
+
+              <span v-if="sessionSummary.onlineSales > 0" class="text-gray-500 pl-2">• Stripe / Online:</span>
+              <span v-if="sessionSummary.onlineSales > 0" class="text-right">₡{{ sessionSummary.onlineSales?.toLocaleString() }}</span>
+
+              <span v-if="sessionSummary.otherSales > 0" class="text-gray-500 pl-2">• Otros:</span>
+              <span v-if="sessionSummary.otherSales > 0" class="text-right">₡{{ sessionSummary.otherSales?.toLocaleString() }}</span>
               
               <div class="col-span-2 border-t border-gray-200 dark:border-gray-700 my-2" />
               
-              <span class="text-gray-900 dark:text-white font-semibold">Efectivo Esperado:</span>
+              <span class="text-gray-900 dark:text-white font-semibold">Total Caja Esperado:</span>
               <span class="font-bold text-right text-lg text-primary-600">₡{{ expectedCash.toLocaleString() }}</span>
-            </div>
-            
-            <p class="text-xs text-gray-400 mt-2">
-              * Efectivo esperado = Apertura + Ventas en efectivo
-            </p>
-          </div>
-
-          <UFormField label="Efectivo Final (Conteo)" name="closingAmount">
-            <UInput
-              v-model.number="closingAmount"
-              type="number"
-              size="xl"
-            >
-              <template #leading><span class="text-gray-500">₡</span></template>
-            </UInput>
-          </UFormField>
-          
-          <!-- Diferencia en tiempo real -->
-          <div v-if="sessionSummary" class="p-3 rounded-lg" :class="cashDifference === 0 ? 'bg-green-50 dark:bg-green-950' : cashDifference > 0 ? 'bg-blue-50 dark:bg-blue-950' : 'bg-red-50 dark:bg-red-950'">
-            <div class="flex justify-between items-center">
-              <span class="text-sm font-medium" :class="cashDifference === 0 ? 'text-green-700 dark:text-green-300' : cashDifference > 0 ? 'text-blue-700 dark:text-blue-300' : 'text-red-700 dark:text-red-300'">
-                {{ cashDifference === 0 ? '✓ Sin diferencia' : cashDifference > 0 ? 'Sobrante:' : 'Faltante:' }}
-              </span>
-              <span v-if="cashDifference !== 0" class="font-bold" :class="cashDifference > 0 ? 'text-blue-700 dark:text-blue-300' : 'text-red-700 dark:text-red-300'">
-                ₡{{ Math.abs(cashDifference).toLocaleString() }}
-              </span>
             </div>
           </div>
 

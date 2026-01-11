@@ -220,9 +220,28 @@ async function quickStockUpdate(product: any, delta: number) {
   }
 }
 
-onMounted(() => {
-  loadData()
+const route = useRoute()
+
+onMounted(async () => {
+  await loadData()
+  
+  // Deep link support: Open edit modal if ?edit=ID is present
+  if (route.query.edit) {
+      const productId = route.query.edit as string
+      const product = products.value.find(p => p.id === productId)
+      if (product) {
+          openEditModal(product)
+      }
+  }
 })
+
+// Clear query param when closing modal
+watch(showModal, (isOpen) => {
+    if (!isOpen && route.query.edit) {
+        useRouter().push({ query: { ...route.query, edit: undefined } })
+    }
+})
+
 </script>
 
 <template>

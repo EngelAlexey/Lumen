@@ -48,6 +48,9 @@ export const useTransactions = () => {
         notes?: string
         paymentReference?: string
         status?: 'pending' | 'paid'
+        customerId?: string
+        deliveryStatus?: 'pending' | 'preparing' | 'ready' | 'in_route' | 'delivered' | 'cancelled'
+        paymentMethod?: 'cash' | 'card_manual' | 'stripe_checkout' | 'transfer' | 'other'
     }) => {
         const userId = await getAuthenticatedUserId()
         if (!userId) return { success: false, error: 'No autenticado' }
@@ -85,7 +88,10 @@ export const useTransactions = () => {
                 notes: data.notes || null,
                 payment_reference: isPaid ? (data.paymentReference || null) : null,
                 served_by: userId,
-                paid_at: isPaid ? new Date().toISOString() : null
+                paid_at: isPaid ? new Date().toISOString() : null,
+                customer_id: data.customerId || null,
+                delivery_status: data.deliveryStatus || 'delivered',
+                payment_method: data.paymentMethod || (isPaid ? 'cash' : 'other')
             }
 
             const { data: transaction, error: txnError } = await supabase
@@ -293,6 +299,19 @@ export const useTransactions = () => {
         }
     }
 
+    const createStripePayment = async (transactionId: string) => {
+        try {
+            const { url } = await $fetch<{ url: string }>('/api/stripe/create-payment', {
+                method: 'POST',
+                body: { transactionId }
+            })
+            return { success: true, url }
+        } catch (error: any) {
+            console.error('Stripe payment error:', error)
+            return { success: false, error: error.message || 'Error generando link de pago' }
+        }
+    }
+
     return {
         loading,
         paymentMethods,
@@ -302,6 +321,7 @@ export const useTransactions = () => {
         updateTransactionStatus,
         getTodayTransactions,
         getTransactions,
-        cancelTransaction
+        cancelTransaction,
+        createStripePayment
     }
 }

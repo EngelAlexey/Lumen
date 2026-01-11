@@ -187,6 +187,7 @@ export const useCashRegister = () => {
                 .select(`
                     total,
                     status,
+                    payment_method,
                     payment_methods (name, code)
                 `)
                 .eq('cash_session_id', sessionId)
@@ -198,16 +199,24 @@ export const useCashRegister = () => {
                 cashSales: 0,
                 cardSales: 0,
                 transferSales: 0,
+                onlineSales: 0,
+                otherSales: 0,
                 cancelledCount: 0
             }
 
             transactions?.forEach((t: any) => {
                 if (t.status === 'paid') {
                     summary.totalSales += t.total || 0
-                    const code = t.payment_methods?.code
+
+                    // Prioritize relation code, fallback to string column
+                    const code = t.payment_methods?.code || t.payment_method
+
                     if (code === 'cash') summary.cashSales += t.total || 0
-                    else if (code === 'card') summary.cardSales += t.total || 0
+                    else if (code === 'card' || code === 'card_manual') summary.cardSales += t.total || 0
                     else if (code === 'transfer') summary.transferSales += t.total || 0
+                    else if (code === 'stripe_checkout' || code === 'stripe') summary.onlineSales += t.total || 0
+                    else summary.otherSales += t.total || 0
+
                 } else if (t.status === 'cancelled') {
                     summary.cancelledCount++
                 }
