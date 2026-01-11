@@ -15,13 +15,19 @@ export default defineEventHandler(async (event) => {
         })
     }
 
+    const userId = user.id || (user as any).sub
+    if (!userId) {
+        console.error('User found but has no ID:', user)
+        throw createError({ statusCode: 500, message: 'User identity missing' })
+    }
+
     const body = await readBody(event)
     const { plan } = body
 
     const priceMap: Record<string, string> = {
         'solo': config.stripePriceSolo,
         'startup': config.stripePriceStartup,
-        // 'organization': 'price_placeholder_organization' // Contact sales
+        // 'organization': 'price_placeholder_organization'
     }
 
     const priceId = priceMap[plan.toLowerCase()]
@@ -36,7 +42,7 @@ export default defineEventHandler(async (event) => {
     const { data: business } = await supabase
         .from('businesses')
         .select('stripe_customer_id, name')
-        .eq('owner_id', user.id)
+        .eq('owner_id', userId)
         .single() as { data: any, error: any }
 
     let customerId = business?.stripe_customer_id
@@ -47,7 +53,7 @@ export default defineEventHandler(async (event) => {
             email: user.email,
             name: full_name,
             metadata: {
-                supabase_user_id: user.id
+                supabase_user_id: userId
             }
         })
         customerId = customer.id
@@ -55,11 +61,17 @@ export default defineEventHandler(async (event) => {
         await supabase
             .from('businesses')
             .update({ stripe_customer_id: customerId })
-            .eq('owner_id', user.id)
+            .eq('owner_id', userId)
     }
 
     try {
+        const metadata = {
+            plan: plan,
+            supabase_user_id: userId
+        }
         console.log('Creating Stripe session for customer:', customerId, 'Plan:', plan)
+        console.log('Intended Metadata:', metadata)
+
         const session = await stripe.checkout.sessions.create({
             customer: customerId,
             payment_method_types: ['card'],
@@ -71,14 +83,18 @@ export default defineEventHandler(async (event) => {
             ],
             mode: 'subscription',
             allow_promotion_codes: true,
+
             subscription_data: {
                 trial_period_days: 14,
-                metadata: {
-                    plan: plan,
-                    supabase_user_id: user.id
-                }
             },
-            success_url: `${config.public.siteUrl}/dashboard?success=true`,
+
+            metadata: {
+                plan: plan,
+                supabase_user_id: userId
+            },
+            client_reference_id: userId,
+
+            success_url: `${config.public.siteUrl}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
             cancel_url: `${config.public.siteUrl}/pricing?canceled=true`,
         })
 

@@ -28,10 +28,13 @@ const loading = ref(false)
 async function onSubmit(event: FormSubmitEvent<Schema>) {
   loading.value = true
   try {
-    const result = await login(event.data.email, event.data.password)
+    // CORRECCIÓN: Se pasa un objeto como espera useAuth
+    const result = await login({
+        email: event.data.email, 
+        password: event.data.password
+    })
     
     if (result.success) {
-      // Wait for user state to propagate to composable to avoid middleware redirect loop
       const user = useSupabaseUser()
       let attempts = 0
       while (!user.value && attempts < 10) {
@@ -78,7 +81,6 @@ const providers = [{
       </template>
 
       <div class="space-y-4">
-        <!-- Social Providers -->
         <div class="grid grid-cols-2 gap-3">
           <UButton 
             v-for="provider in providers" 

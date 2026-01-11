@@ -1,5 +1,3 @@
-// nuxt.config.ts
-// https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
@@ -39,6 +37,7 @@ export default defineNuxtConfig({
   runtimeConfig: {
     supabaseServiceKey: process.env.SUPABASE_SERVICE_KEY,
     stripeSecretKey: process.env.STRIPE_SECRET_KEY,
+    stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
     stripePriceSolo: process.env.STRIPE_PRICE_SOLO || 'price_1SoEXdEKONx2SQOvKf2bKkxx',
     stripePriceStartup: process.env.STRIPE_PRICE_STARTUP || 'price_1SoETwEKONx2SQOvVwwEbA6G',
 
