@@ -2,29 +2,35 @@
 const { currentSession, fetchCurrentSession, openSession, closeSession, loading, getSessionSummary } = useCashRegister()
 const toast = useToast()
 
-// Modal states
 const showOpenModal = ref(false)
 const showCloseModal = ref(false)
 const processing = ref(false)
 
-// Form states
 const openingAmount = ref(0)
 const closingAmount = ref(0)
 const closingNotes = ref('')
 
-// Session summary (for close modal)
 const sessionSummary = ref<any>(null)
+
+const expectedCash = computed(() => {
+  if (!currentSession.value || !sessionSummary.value) return 0
+  return (currentSession.value.opening_cash || 0) + (sessionSummary.value.cashSales || 0)
+})
+
+const cashDifference = computed(() => {
+  return closingAmount.value - expectedCash.value
+})
 
 onMounted(() => {
   fetchCurrentSession()
 })
 
-// When opening close modal, fetch summary
 watch(showCloseModal, async (isOpen) => {
   if (isOpen && currentSession.value?.id) {
     const { success, summary } = await getSessionSummary(currentSession.value.id)
     if (success) {
       sessionSummary.value = summary
+      closingAmount.value = (currentSession.value.opening_cash || 0) + (summary.cashSales || 0)
     }
   }
 })
@@ -181,18 +187,33 @@ async function handleCloseSession() {
           />
 
           <!-- Session Summary -->
-          <div v-if="sessionSummary" class="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 space-y-2">
+          <div v-if="sessionSummary" class="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 space-y-3">
             <h4 class="font-semibold text-sm uppercase tracking-wider text-gray-500">Resumen del Turno</h4>
             <div class="grid grid-cols-2 gap-2 text-sm">
+              <span class="text-gray-500">Apertura:</span>
+              <span class="font-bold text-right">₡{{ (currentSession?.opening_cash || 0).toLocaleString() }}</span>
+              
               <span class="text-gray-500">Ventas Totales:</span>
               <span class="font-bold text-right">₡{{ sessionSummary.totalSales?.toLocaleString() }}</span>
-              <span class="text-gray-500">Efectivo:</span>
-              <span class="text-right">₡{{ sessionSummary.cashSales?.toLocaleString() }}</span>
-              <span class="text-gray-500">Tarjeta:</span>
+              
+              <span class="text-gray-500 pl-2">• Efectivo:</span>
+              <span class="text-right text-green-600">₡{{ sessionSummary.cashSales?.toLocaleString() }}</span>
+              
+              <span class="text-gray-500 pl-2">• Tarjeta:</span>
               <span class="text-right">₡{{ sessionSummary.cardSales?.toLocaleString() }}</span>
-              <span class="text-gray-500">Transferencia:</span>
+              
+              <span class="text-gray-500 pl-2">• Transferencia:</span>
               <span class="text-right">₡{{ sessionSummary.transferSales?.toLocaleString() }}</span>
+              
+              <div class="col-span-2 border-t border-gray-200 dark:border-gray-700 my-2" />
+              
+              <span class="text-gray-900 dark:text-white font-semibold">Efectivo Esperado:</span>
+              <span class="font-bold text-right text-lg text-primary-600">₡{{ expectedCash.toLocaleString() }}</span>
             </div>
+            
+            <p class="text-xs text-gray-400 mt-2">
+              * Efectivo esperado = Apertura + Ventas en efectivo
+            </p>
           </div>
 
           <UFormField label="Efectivo Final (Conteo)" name="closingAmount">
@@ -204,6 +225,18 @@ async function handleCloseSession() {
               <template #leading><span class="text-gray-500">₡</span></template>
             </UInput>
           </UFormField>
+          
+          <!-- Diferencia en tiempo real -->
+          <div v-if="sessionSummary" class="p-3 rounded-lg" :class="cashDifference === 0 ? 'bg-green-50 dark:bg-green-950' : cashDifference > 0 ? 'bg-blue-50 dark:bg-blue-950' : 'bg-red-50 dark:bg-red-950'">
+            <div class="flex justify-between items-center">
+              <span class="text-sm font-medium" :class="cashDifference === 0 ? 'text-green-700 dark:text-green-300' : cashDifference > 0 ? 'text-blue-700 dark:text-blue-300' : 'text-red-700 dark:text-red-300'">
+                {{ cashDifference === 0 ? '✓ Sin diferencia' : cashDifference > 0 ? 'Sobrante:' : 'Faltante:' }}
+              </span>
+              <span v-if="cashDifference !== 0" class="font-bold" :class="cashDifference > 0 ? 'text-blue-700 dark:text-blue-300' : 'text-red-700 dark:text-red-300'">
+                ₡{{ Math.abs(cashDifference).toLocaleString() }}
+              </span>
+            </div>
+          </div>
 
           <UFormField label="Notas / Observaciones" name="notes">
             <UTextarea v-model="closingNotes" placeholder="Diferencias, novedades..." />

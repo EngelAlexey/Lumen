@@ -1,38 +1,34 @@
-/**
- * Role-based Middleware
- * Restricts access to routes based on user role
- * Usage: Add to page meta: middleware: ['role']
- */
-
 export default defineNuxtRouteMiddleware(async (to) => {
-    const supabase = useSupabaseClient()
+    const supabase = useSupabaseClient<any>()
     const user = useSupabaseUser()
 
-    if (!user.value) {
+    let userId = user.value?.id
+    if (!userId) {
+        const { data: { session } } = await supabase.auth.getSession()
+        userId = session?.user?.id
+    }
+
+    if (!userId) {
         return navigateTo('/login')
     }
 
-    // Get user role from database
     const { data: userData } = await supabase
         .from('users')
         .select('role')
-        .eq('id', user.value.id)
+        .eq('id', userId)
         .single()
 
-    const userRole = userData?.role
+    const userRole = (userData as any)?.role as string | undefined
 
-    // Define route roles (can be extended in page meta)
-    const routeRoles = {
+    const routeRoles: Record<string, string[]> = {
         '/users': ['owner', 'manager'],
         '/settings': ['owner', 'manager'],
         '/reports': ['owner', 'manager']
     }
 
-    // Check if route has role restrictions
     const allowedRoles = routeRoles[to.path]
 
-    if (allowedRoles && !allowedRoles.includes(userRole)) {
-        // Redirect to dashboard if user doesn't have permission
+    if (allowedRoles && userRole && !allowedRoles.includes(userRole)) {
         return navigateTo('/dashboard')
     }
 })

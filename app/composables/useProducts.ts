@@ -7,13 +7,26 @@ export const useProducts = () => {
     const supabase = useSupabaseClient<any>()
     const user = useSupabaseUser()
 
+    const getAuthenticatedUserId = async (): Promise<string | null> => {
+        if (user.value?.id) return user.value.id
+
+        try {
+            const { data: { session } } = await supabase.auth.getSession()
+            return session?.user?.id || null
+        } catch (error) {
+            console.error('Error getting session:', error)
+            return null
+        }
+    }
+
     const getProducts = async () => {
-        if (!user.value?.id) return { success: false, error: 'No autenticado' }
+        const userId = await getAuthenticatedUserId()
+        if (!userId) return { success: false, error: 'No autenticado' }
 
         const { data: userData, error: userError } = await supabase
             .from('users')
             .select('business_id')
-            .eq('id', user.value.id)
+            .eq('id', userId)
             .single()
 
         if (userError || !userData?.business_id) {
@@ -36,17 +49,16 @@ export const useProducts = () => {
     }
 
     const createProduct = async (product: Omit<ProductInsert, 'business_id'>) => {
-        const user = useSupabaseUser()
-
-        if (!user.value || !user.value.id) {
-            console.error('CreateProduct: User is null', user.value)
+        const userId = await getAuthenticatedUserId()
+        if (!userId) {
+            console.error('CreateProduct: User not authenticated')
             return { success: false, error: 'No autenticado (Sesión perdida)' }
         }
 
         const { data: userData, error: userError } = await supabase
             .from('users')
             .select('business_id')
-            .eq('id', user.value.id)
+            .eq('id', userId)
             .single()
 
         if (userError || !userData || !userData.business_id) {
@@ -78,5 +90,30 @@ export const useProducts = () => {
         if (error) return { success: false, error: error.message }
         return { success: true }
     }
-    return { getProducts, createProduct, deleteProduct }
+
+    const updateProduct = async (id: string, updates: Partial<ProductInsert>) => {
+        const userId = await getAuthenticatedUserId()
+        if (!userId) {
+            return { success: false, error: 'No autenticado' }
+        }
+
+        const { data, error } = await supabase
+            .from('products')
+            .update({
+                ...updates,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', id)
+            .select()
+            .single()
+
+        if (error) {
+            console.error('Supabase Update Error:', error)
+            return { success: false, error: error.message }
+        }
+
+        return { success: true, data }
+    }
+
+    return { getProducts, createProduct, updateProduct, deleteProduct }
 }

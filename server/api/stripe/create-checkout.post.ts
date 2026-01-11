@@ -7,7 +7,6 @@ export default defineEventHandler(async (event) => {
         apiVersion: '2025-01-27' as any,
     })
 
-    // 1. Get current user from Supabase
     const user = await serverSupabaseUser(event)
     if (!user) {
         throw createError({
@@ -16,11 +15,9 @@ export default defineEventHandler(async (event) => {
         })
     }
 
-    // 2. Get request body (plan info)
     const body = await readBody(event)
     const { plan } = body
 
-    // Map plan names to your Stripe Price IDs (User should replace these)
     const priceMap: Record<string, string> = {
         'solo': 'price_placeholder_solo',
         'startup': 'price_placeholder_startup',
@@ -35,8 +32,6 @@ export default defineEventHandler(async (event) => {
         })
     }
 
-    // 3. Get or create Stripe Customer
-    // Here we would ideally check the database for an existing stripe_customer_id
     const supabase = await serverSupabaseClient(event) as any
     const { data: business } = await supabase
         .from('businesses')
@@ -57,14 +52,12 @@ export default defineEventHandler(async (event) => {
         })
         customerId = customer.id
 
-        // Save customer ID back to database
         await supabase
             .from('businesses')
             .update({ stripe_customer_id: customerId })
             .eq('owner_id', user.id)
     }
 
-    // 4. Create Checkout Session
     try {
         const session = await stripe.checkout.sessions.create({
             customer: customerId,
@@ -89,7 +82,6 @@ export default defineEventHandler(async (event) => {
 
         return { url: session.url }
     } catch (error: any) {
-        console.error('Stripe session creation error:', error)
         throw createError({
             statusCode: 500,
             message: error.message

@@ -1,8 +1,3 @@
-/**
- * Transactions Composable
- * Handles CRUD operations for sales transactions
- */
-
 import type {
     Transaction,
     TransactionInsert,
@@ -19,7 +14,17 @@ export const useTransactions = () => {
     const loading = ref(false)
     const paymentMethods = ref<PaymentMethod[]>([])
 
-    // ===== PAYMENT METHODS =====
+    const getAuthenticatedUserId = async (): Promise<string | null> => {
+        if (user.value?.id) return user.value.id
+
+        try {
+            const { data: { session } } = await supabase.auth.getSession()
+            return session?.user?.id || null
+        } catch (error) {
+            console.error('Error getting session:', error)
+            return null
+        }
+    }
 
     const fetchPaymentMethods = async () => {
         const { data, error } = await supabase
@@ -34,44 +39,43 @@ export const useTransactions = () => {
         return paymentMethods.value
     }
 
-    // ===== CREATE TRANSACTION =====
-
     const createTransaction = async (data: {
         cashSessionId: string
-        paymentMethodId: string
+        paymentMethodId?: string | null
         items: CartItem[]
         customerName?: string
         tableNumber?: string
         notes?: string
         paymentReference?: string
+        status?: 'pending' | 'paid'
     }) => {
-        if (!user.value?.id) return { success: false, error: 'No autenticado' }
+        const userId = await getAuthenticatedUserId()
+        if (!userId) return { success: false, error: 'No autenticado' }
 
         loading.value = true
 
         try {
-            // 1. Get business_id
             const { data: userData, error: userError } = await supabase
                 .from('users')
                 .select('business_id')
-                .eq('id', user.value.id)
+                .eq('id', userId)
                 .single()
 
             if (userError || !userData?.business_id) {
                 throw new Error('Usuario sin negocio asignado')
             }
 
-            // 2. Calculate totals
             const subtotal = data.items.reduce((sum, item) => sum + (item.product.price * item.quantity), 0)
             const discount = data.items.reduce((sum, item) => sum + (item.discount * item.quantity), 0)
             const total = data.items.reduce((sum, item) => sum + item.subtotal, 0)
+            const transactionStatus = data.status || 'paid'
+            const isPaid = transactionStatus === 'paid'
 
-            // 3. Insert transaction header
             const transactionPayload: TransactionInsert = {
                 business_id: userData.business_id,
                 cash_session_id: data.cashSessionId,
-                payment_method_id: data.paymentMethodId,
-                status: 'paid',
+                payment_method_id: isPaid ? data.paymentMethodId || null : null,
+                status: transactionStatus,
                 subtotal,
                 tax: 0, // TODO: Implement tax calculation
                 discount,
@@ -79,9 +83,9 @@ export const useTransactions = () => {
                 customer_name: data.customerName || null,
                 table_number: data.tableNumber || null,
                 notes: data.notes || null,
-                payment_reference: data.paymentReference || null,
-                served_by: user.value.id,
-                paid_at: new Date().toISOString()
+                payment_reference: isPaid ? (data.paymentReference || null) : null,
+                served_by: userId,
+                paid_at: isPaid ? new Date().toISOString() : null
             }
 
             const { data: transaction, error: txnError } = await supabase
@@ -92,7 +96,6 @@ export const useTransactions = () => {
 
             if (txnError) throw txnError
 
-            // 4. Insert transaction items
             const itemsPayload: TransactionItemInsert[] = data.items.map(item => ({
                 transaction_id: transaction.id,
                 product_id: item.product.id,
@@ -109,8 +112,6 @@ export const useTransactions = () => {
 
             if (itemsError) throw itemsError
 
-            // 5. Inventory is automatically decreased by SQL trigger!
-
             return {
                 success: true,
                 transactionNumber: transaction.transaction_number,
@@ -125,10 +126,57 @@ export const useTransactions = () => {
         }
     }
 
-    // ===== GET TODAY'S TRANSACTIONS =====
+    const payTransaction = async (transactionId: string, data: {
+        paymentMethodId: string
+        paymentReference?: string
+    }) => {
+        try {
+            const { error } = await supabase
+                .from('transactions')
+                .update({
+                    status: 'paid',
+                    payment_method_id: data.paymentMethodId,
+                    payment_reference: data.paymentReference || null,
+                    paid_at: new Date().toISOString()
+                })
+                .eq('id', transactionId)
+
+            if (error) throw error
+
+            return { success: true }
+        } catch (error: any) {
+            return { success: false, error: error.message }
+        }
+    }
+
+    const updateTransactionStatus = async (transactionId: string, status: 'pending' | 'delivered' | 'paid' | 'cancelled') => {
+        try {
+            const updates: any = { status }
+
+            if (status === 'delivered') {
+                updates.delivered_at = new Date().toISOString()
+            } else if (status === 'cancelled') {
+                updates.cancelled_at = new Date().toISOString()
+            } else if (status === 'paid') {
+                updates.paid_at = new Date().toISOString()
+            }
+
+            const { error } = await supabase
+                .from('transactions')
+                .update(updates)
+                .eq('id', transactionId)
+
+            if (error) throw error
+
+            return { success: true }
+        } catch (error: any) {
+            return { success: false, error: error.message }
+        }
+    }
 
     const getTodayTransactions = async () => {
-        if (!user.value?.id) return { success: false, error: 'No autenticado', data: [] }
+        const userId = await getAuthenticatedUserId()
+        if (!userId) return { success: false, error: 'No autenticado', data: [] }
 
         loading.value = true
 
@@ -136,12 +184,11 @@ export const useTransactions = () => {
             const { data: userData } = await supabase
                 .from('users')
                 .select('business_id')
-                .eq('id', user.value.id)
+                .eq('id', userId)
                 .single()
 
             if (!userData?.business_id) throw new Error('Sin negocio asignado')
 
-            // Get today's date range
             const today = new Date()
             today.setHours(0, 0, 0, 0)
             const tomorrow = new Date(today)
@@ -170,15 +217,14 @@ export const useTransactions = () => {
         }
     }
 
-    // ===== GET ALL TRANSACTIONS (with optional filters) =====
-
     const getTransactions = async (filters?: {
         status?: string
         startDate?: string
         endDate?: string
         cashSessionId?: string
     }) => {
-        if (!user.value?.id) return { success: false, error: 'No autenticado', data: [] }
+        const userId = await getAuthenticatedUserId()
+        if (!userId) return { success: false, error: 'No autenticado', data: [] }
 
         loading.value = true
 
@@ -186,7 +232,7 @@ export const useTransactions = () => {
             const { data: userData } = await supabase
                 .from('users')
                 .select('business_id')
-                .eq('id', user.value.id)
+                .eq('id', userId)
                 .single()
 
             if (!userData?.business_id) throw new Error('Sin negocio asignado')
@@ -195,7 +241,8 @@ export const useTransactions = () => {
                 .from('transactions')
                 .select(`
                     *,
-                    payment_methods (name, code)
+                    payment_methods (name, code),
+                    transaction_items (id, product_name, quantity, unit_price, subtotal)
                 `)
                 .eq('business_id', userData.business_id)
                 .order('created_at', { ascending: false })
@@ -227,8 +274,6 @@ export const useTransactions = () => {
         }
     }
 
-    // ===== CANCEL TRANSACTION =====
-
     const cancelTransaction = async (transactionId: string, reason?: string) => {
         try {
             const { error } = await supabase
@@ -242,8 +287,6 @@ export const useTransactions = () => {
 
             if (error) throw error
 
-            // TODO: Consider reversing inventory (would need separate logic)
-
             return { success: true }
         } catch (error: any) {
             return { success: false, error: error.message }
@@ -255,6 +298,8 @@ export const useTransactions = () => {
         paymentMethods,
         fetchPaymentMethods,
         createTransaction,
+        payTransaction,
+        updateTransactionStatus,
         getTodayTransactions,
         getTransactions,
         cancelTransaction

@@ -1,25 +1,15 @@
-/**
- * Cash Register Composable
- * Manages cash session (opening/closing) operations
- */
-
 import type { CashSession, PaymentMethod } from '~/types/database.types'
 
 export const useCashRegister = () => {
     const supabase = useSupabaseClient<any>()
     const user = useSupabaseUser()
 
-    // Reactive state
     const currentSession = ref<CashSession | null>(null)
     const loading = ref(false)
     const paymentMethods = ref<PaymentMethod[]>([])
-
-    // Helper: Get authenticated user ID reliably
     const getAuthenticatedUserId = async (): Promise<string | null> => {
-        // Try reactive ref first
         if (user.value?.id) return user.value.id
 
-        // Fallback: Get session (doesn't make HTTP call, reads from storage)
         try {
             const { data: { session } } = await supabase.auth.getSession()
             if (session?.user?.id) {
@@ -33,15 +23,12 @@ export const useCashRegister = () => {
         }
     }
 
-    // ===== FETCH CURRENT OPEN SESSION =====
-
     const fetchCurrentSession = async () => {
         const userId = await getAuthenticatedUserId()
         if (!userId) return null
 
         loading.value = true
         try {
-            // Get user's business_id first
             const { data: userData, error: userError } = await supabase
                 .from('users')
                 .select('business_id')
@@ -53,7 +40,6 @@ export const useCashRegister = () => {
                 return null
             }
 
-            // Find open session for this business
             const { data, error } = await supabase
                 .from('cash_sessions')
                 .select('*')
@@ -73,14 +59,11 @@ export const useCashRegister = () => {
         }
     }
 
-    // ===== OPEN CASH SESSION =====
-
     const openSession = async (openingCash: number) => {
         const userId = await getAuthenticatedUserId()
         if (!userId) return { success: false, error: 'No autenticado. Por favor recarga la página.' }
 
         try {
-            // Get business_id
             const { data: userData, error: userError } = await supabase
                 .from('users')
                 .select('business_id')
@@ -91,7 +74,6 @@ export const useCashRegister = () => {
                 return { success: false, error: 'Sin negocio asignado' }
             }
 
-            // Check if there's already an open session
             const { data: existingSession } = await supabase
                 .from('cash_sessions')
                 .select('id')
@@ -103,7 +85,6 @@ export const useCashRegister = () => {
                 return { success: false, error: 'Ya existe una caja abierta' }
             }
 
-            // Create new session
             const { data, error } = await supabase
                 .from('cash_sessions')
                 .insert({
@@ -127,8 +108,6 @@ export const useCashRegister = () => {
         }
     }
 
-    // ===== CLOSE CASH SESSION =====
-
     const closeSession = async (closingCash: number, notes?: string) => {
         if (!currentSession.value?.id) {
             return { success: false, error: 'No hay sesión activa' }
@@ -139,7 +118,6 @@ export const useCashRegister = () => {
         }
 
         try {
-            // Calculate expected cash (opening + sales in this session)
             const { data: salesTotal } = await supabase
                 .from('transactions')
                 .select('total')
@@ -147,7 +125,6 @@ export const useCashRegister = () => {
                 .eq('status', 'paid')
                 .not('payment_method_id', 'is', null)
 
-            // Filter only cash payments for expected calculation
             const { data: cashPayments } = await supabase
                 .from('transactions')
                 .select('total, payment_methods!inner(code)')
@@ -190,8 +167,6 @@ export const useCashRegister = () => {
         }
     }
 
-    // ===== FETCH PAYMENT METHODS =====
-
     const fetchPaymentMethods = async () => {
         const { data, error } = await supabase
             .from('payment_methods')
@@ -204,8 +179,6 @@ export const useCashRegister = () => {
         }
         return paymentMethods.value
     }
-
-    // ===== SESSION SUMMARY (for reports) =====
 
     const getSessionSummary = async (sessionId: string) => {
         try {

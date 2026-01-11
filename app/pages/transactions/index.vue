@@ -1,11 +1,22 @@
 <script setup lang="ts">
 import type { Transaction } from '~/types/database.types'
 
-const { getTodayTransactions, getTransactions, loading } = useTransactions()
+const { getTodayTransactions, getTransactions, payTransaction, updateTransactionStatus, fetchPaymentMethods, loading, paymentMethods } = useTransactions()
 const toast = useToast()
 
 const transactions = ref<Transaction[]>([])
 const statusFilter = ref<string | null>(null)
+const expandedRow = ref<string | null>(null)
+
+// Modal para cobrar pendientes
+const showPayModal = ref(false)
+const selectedTransaction = ref<any>(null)
+const selectedPaymentMethod = ref<string | null>(null)
+const paymentReference = ref('')
+
+// Modal para cambiar estado
+const showStatusModal = ref(false)
+const newStatus = ref<string | null>(null)
 
 const statusOptions = [
   { label: 'Todos', value: null },
@@ -32,6 +43,8 @@ const statusLabels: Record<string, string> = {
 const columns = [
   { accessorKey: 'transaction_number', header: 'Folio' },
   { accessorKey: 'created_at', header: 'Hora' },
+  { accessorKey: 'quantity', header: 'Cant.' },
+  { accessorKey: 'products', header: 'Productos' },
   { accessorKey: 'total', header: 'Total' },
   { accessorKey: 'status', header: 'Estado' },
   { accessorKey: 'payment_methods', header: 'Método' },
@@ -41,9 +54,14 @@ const columns = [
 // Today's summary
 const summary = computed(() => {
   const paid = transactions.value.filter(t => t.status === 'paid')
+  const pending = transactions.value.filter(t => t.status === 'pending')
+  const delivered = transactions.value.filter(t => t.status === 'delivered')
   return {
     count: paid.length,
     total: paid.reduce((sum, t) => sum + (t.total || 0), 0),
+    pending: pending.length,
+    pendingTotal: pending.reduce((sum, t) => sum + (t.total || 0), 0),
+    delivered: delivered.length,
     cancelled: transactions.value.filter(t => t.status === 'cancelled').length
   }
 })
@@ -56,9 +74,75 @@ async function loadTransactions() {
   }
 }
 
+function toggleRow(id: string) {
+  expandedRow.value = expandedRow.value === id ? null : id
+}
+
+function openPayModal(transaction: any) {
+  selectedTransaction.value = transaction
+  selectedPaymentMethod.value = null
+  paymentReference.value = ''
+  showPayModal.value = true
+}
+
+function openStatusModal(transaction: any) {
+  selectedTransaction.value = transaction
+  newStatus.value = transaction.status
+  showStatusModal.value = true
+}
+
+async function processPayment() {
+  if (!selectedTransaction.value || !selectedPaymentMethod.value) {
+    toast.add({ title: 'Error', description: 'Selecciona un método de pago', color: 'error' })
+    return
+  }
+
+  const result = await payTransaction(selectedTransaction.value.id, {
+    paymentMethodId: selectedPaymentMethod.value,
+    paymentReference: paymentReference.value || undefined
+  })
+
+  if (result.success) {
+    toast.add({ title: 'Éxito', description: 'Cuenta cobrada correctamente', color: 'success' })
+    showPayModal.value = false
+    loadTransactions()
+  } else {
+    toast.add({ title: 'Error', description: result.error, color: 'error' })
+  }
+}
+
+async function changeStatus() {
+  if (!selectedTransaction.value || !newStatus.value) return
+  
+  const result = await updateTransactionStatus(selectedTransaction.value.id, newStatus.value as any)
+  
+  if (result.success) {
+    toast.add({ title: 'Estado actualizado', color: 'success' })
+    showStatusModal.value = false
+    loadTransactions()
+  } else {
+    toast.add({ title: 'Error', description: result.error, color: 'error' })
+  }
+}
+
+// Helper: Get total quantity from items
+function getTotalQuantity(items: any[]): number {
+  if (!items?.length) return 0
+  return items.reduce((sum, item) => sum + (item.quantity || 0), 0)
+}
+
+// Helper: Get product names
+function getProductNames(items: any[]): string {
+  if (!items?.length) return '-'
+  return items.map((i: any) => i.product_name).join(', ')
+}
+
 watch(statusFilter, () => loadTransactions())
 
-onMounted(() => loadTransactions())
+onMounted(() => {
+  loadTransactions()
+  fetchPaymentMethods()
+})
 </script>
 
 <template>
@@ -80,23 +164,36 @@ onMounted(() => loadTransactions())
     </div>
 
     <!-- Summary Cards -->
-    <div class="grid grid-cols-3 gap-4">
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
       <UCard>
         <div class="text-center">
-          <p class="text-sm text-gray-500 uppercase tracking-wider">Ventas Hoy</p>
-          <p class="text-3xl font-bold text-gray-900 dark:text-white">{{ summary.count }}</p>
+          <p class="text-xs text-gray-500 uppercase tracking-wider">Ventas Hoy</p>
+          <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ summary.count }}</p>
         </div>
       </UCard>
       <UCard>
         <div class="text-center">
-          <p class="text-sm text-gray-500 uppercase tracking-wider">Total Vendido</p>
-          <p class="text-3xl font-bold text-green-600">₡{{ summary.total.toLocaleString() }}</p>
+          <p class="text-xs text-gray-500 uppercase tracking-wider">Total Vendido</p>
+          <p class="text-2xl font-bold text-green-600">₡{{ summary.total.toLocaleString() }}</p>
+        </div>
+      </UCard>
+      <UCard v-if="summary.pending > 0">
+        <div class="text-center">
+          <p class="text-xs text-gray-500 uppercase tracking-wider">Pendientes</p>
+          <p class="text-2xl font-bold text-yellow-500">{{ summary.pending }}</p>
+          <p class="text-xs text-yellow-600">₡{{ summary.pendingTotal.toLocaleString() }}</p>
+        </div>
+      </UCard>
+      <UCard v-if="summary.delivered > 0">
+        <div class="text-center">
+          <p class="text-xs text-gray-500 uppercase tracking-wider">Entregados</p>
+          <p class="text-2xl font-bold text-blue-500">{{ summary.delivered }}</p>
         </div>
       </UCard>
       <UCard>
         <div class="text-center">
-          <p class="text-sm text-gray-500 uppercase tracking-wider">Canceladas</p>
-          <p class="text-3xl font-bold" :class="summary.cancelled > 0 ? 'text-red-500' : 'text-gray-400'">
+          <p class="text-xs text-gray-500 uppercase tracking-wider">Canceladas</p>
+          <p class="text-2xl font-bold" :class="summary.cancelled > 0 ? 'text-red-500' : 'text-gray-400'">
             {{ summary.cancelled }}
           </p>
         </div>
@@ -118,7 +215,12 @@ onMounted(() => loadTransactions())
     <UCard>
       <UTable :columns="columns" :data="transactions" :loading="loading">
         <template #transaction_number-cell="{ row }">
-          <span class="font-mono font-medium text-primary-600">{{ row.original.transaction_number }}</span>
+          <button 
+            class="font-mono font-medium text-primary-600 hover:underline cursor-pointer"
+            @click="toggleRow(row.original.id)"
+          >
+            {{ row.original.transaction_number }}
+          </button>
         </template>
 
         <template #created_at-cell="{ row }">
@@ -127,14 +229,37 @@ onMounted(() => loadTransactions())
           </span>
         </template>
 
+        <template #quantity-cell="{ row }">
+          <UBadge v-if="(row.original as any).transaction_items?.length" color="neutral" variant="subtle">
+            {{ getTotalQuantity((row.original as any).transaction_items) }}
+          </UBadge>
+          <span v-else class="text-gray-400">-</span>
+        </template>
+
+        <template #products-cell="{ row }">
+          <div v-if="(row.original as any).transaction_items?.length" class="max-w-xs truncate">
+            <span class="text-sm text-gray-600 dark:text-gray-400">
+              {{ getProductNames((row.original as any).transaction_items).substring(0, 40) }}
+              <span v-if="getProductNames((row.original as any).transaction_items).length > 40">...</span>
+            </span>
+          </div>
+          <span v-else class="text-sm text-gray-400">-</span>
+        </template>
+
         <template #total-cell="{ row }">
           <span class="font-bold">₡{{ row.original.total?.toLocaleString() }}</span>
         </template>
 
         <template #status-cell="{ row }">
-          <UBadge :color="statusColors[row.original.status] || 'neutral'" variant="subtle">
-            {{ statusLabels[row.original.status] || row.original.status }}
-          </UBadge>
+          <button @click="openStatusModal(row.original)">
+            <UBadge 
+              :color="statusColors[row.original.status] || 'neutral'" 
+              variant="subtle"
+              class="cursor-pointer hover:opacity-80"
+            >
+              {{ statusLabels[row.original.status] || row.original.status }}
+            </UBadge>
+          </button>
         </template>
 
         <template #payment_methods-cell="{ row }">
@@ -144,7 +269,60 @@ onMounted(() => loadTransactions())
         </template>
 
         <template #actions-cell="{ row }">
-          <UButton variant="ghost" color="neutral" icon="i-heroicons-eye" size="xs" />
+          <div class="flex gap-1">
+            <UButton 
+              v-if="row.original.status === 'pending'" 
+              variant="soft" 
+              color="success" 
+              icon="i-heroicons-banknotes" 
+              size="xs"
+              @click="openPayModal(row.original)"
+            >
+              Cobrar
+            </UButton>
+            <UButton 
+              variant="ghost" 
+              color="neutral" 
+              icon="i-heroicons-eye" 
+              size="xs" 
+              @click="toggleRow(row.original.id)" 
+            />
+            <UButton 
+              variant="ghost" 
+              color="neutral" 
+              icon="i-heroicons-pencil-square" 
+              size="xs" 
+              @click="openStatusModal(row.original)"
+            />
+          </div>
+        </template>
+
+        <!-- Expanded Row -->
+        <template #expanded="{ row }">
+          <div v-if="expandedRow === row.original.id" class="p-4 bg-gray-50 dark:bg-gray-800">
+            <h4 class="font-semibold mb-2">Detalle de Productos</h4>
+            <div class="grid gap-2">
+              <div 
+                v-for="item in (row.original as any).transaction_items" 
+                :key="item.id"
+                class="flex justify-between items-center text-sm"
+              >
+                <span class="flex-1">{{ item.product_name }}</span>
+                <span class="w-20 text-center">{{ item.quantity }} x ₡{{ item.unit_price?.toLocaleString() }}</span>
+                <span class="w-24 text-right font-semibold">₡{{ item.subtotal?.toLocaleString() }}</span>
+              </div>
+            </div>
+            <div class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 flex justify-between font-bold">
+              <span>Total</span>
+              <span>₡{{ row.original.total?.toLocaleString() }}</span>
+            </div>
+            <div v-if="row.original.table_number" class="mt-2 text-sm text-gray-500">
+              Mesa: {{ row.original.table_number }}
+            </div>
+            <div v-if="row.original.customer_name" class="text-sm text-gray-500">
+              Cliente: {{ row.original.customer_name }}
+            </div>
+          </div>
         </template>
 
         <template #empty>
@@ -155,5 +333,143 @@ onMounted(() => loadTransactions())
         </template>
       </UTable>
     </UCard>
+
+    <!-- Pay Modal -->
+    <UModal v-model:open="showPayModal">
+      <template #body>
+        <div class="p-6">
+          <h3 class="text-xl font-bold mb-4">Cobrar Cuenta</h3>
+          
+          <div v-if="selectedTransaction" class="mb-4 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
+            <div class="flex justify-between mb-2">
+              <span class="text-gray-600">Folio:</span>
+              <span class="font-mono font-bold">{{ selectedTransaction.transaction_number }}</span>
+            </div>
+            <div v-if="selectedTransaction.table_number" class="flex justify-between mb-2">
+              <span class="text-gray-600">Mesa:</span>
+              <span>{{ selectedTransaction.table_number }}</span>
+            </div>
+            <div class="flex justify-between text-lg font-bold">
+              <span>Total a cobrar:</span>
+              <span class="text-primary-600">₡{{ selectedTransaction.total?.toLocaleString() }}</span>
+            </div>
+          </div>
+
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium mb-2">Método de Pago</label>
+              <div class="grid grid-cols-2 gap-2">
+                <UButton
+                  v-for="method in paymentMethods"
+                  :key="method.id"
+                  :color="selectedPaymentMethod === method.id ? 'primary' : 'neutral'"
+                  :variant="selectedPaymentMethod === method.id ? 'solid' : 'outline'"
+                  class="justify-center"
+                  @click="selectedPaymentMethod = method.id"
+                >
+                  {{ method.name }}
+                </UButton>
+              </div>
+            </div>
+
+            <UFormField label="Referencia (opcional)">
+              <UInput v-model="paymentReference" placeholder="Número de referencia" />
+            </UFormField>
+          </div>
+
+          <div class="flex gap-3 mt-6">
+            <UButton color="neutral" variant="outline" class="flex-1" @click="showPayModal = false">
+              Cancelar
+            </UButton>
+            <UButton 
+              color="primary" 
+              class="flex-1" 
+              :disabled="!selectedPaymentMethod"
+              @click="processPayment"
+            >
+              Confirmar Cobro
+            </UButton>
+          </div>
+        </div>
+      </template>
+    </UModal>
+
+    <!-- Change Status Modal -->
+    <UModal v-model:open="showStatusModal">
+      <template #body>
+        <div class="p-6">
+          <h3 class="text-xl font-bold mb-4">Cambiar Estado</h3>
+          
+          <div v-if="selectedTransaction" class="mb-4 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
+            <div class="flex justify-between mb-2">
+              <span class="text-gray-600">Folio:</span>
+              <span class="font-mono font-bold">{{ selectedTransaction.transaction_number }}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-600">Estado actual:</span>
+              <UBadge :color="statusColors[selectedTransaction.status]" variant="subtle">
+                {{ statusLabels[selectedTransaction.status] }}
+              </UBadge>
+            </div>
+          </div>
+
+          <div class="space-y-2">
+            <label class="block text-sm font-medium mb-2">Nuevo Estado</label>
+            <div class="grid grid-cols-2 gap-2">
+              <UButton
+                :color="newStatus === 'pending' ? 'warning' : 'neutral'"
+                :variant="newStatus === 'pending' ? 'solid' : 'outline'"
+                class="justify-center"
+                icon="i-heroicons-clock"
+                @click="newStatus = 'pending'"
+              >
+                Pendiente
+              </UButton>
+              <UButton
+                :color="newStatus === 'delivered' ? 'info' : 'neutral'"
+                :variant="newStatus === 'delivered' ? 'solid' : 'outline'"
+                class="justify-center"
+                icon="i-heroicons-truck"
+                @click="newStatus = 'delivered'"
+              >
+                Entregado
+              </UButton>
+              <UButton
+                :color="newStatus === 'paid' ? 'success' : 'neutral'"
+                :variant="newStatus === 'paid' ? 'solid' : 'outline'"
+                class="justify-center"
+                icon="i-heroicons-check-circle"
+                @click="newStatus = 'paid'"
+              >
+                Pagado
+              </UButton>
+              <UButton
+                :color="newStatus === 'cancelled' ? 'error' : 'neutral'"
+                :variant="newStatus === 'cancelled' ? 'solid' : 'outline'"
+                class="justify-center"
+                icon="i-heroicons-x-circle"
+                @click="newStatus = 'cancelled'"
+              >
+                Cancelado
+              </UButton>
+            </div>
+          </div>
+
+          <div class="flex gap-3 mt-6">
+            <UButton color="neutral" variant="outline" class="flex-1" @click="showStatusModal = false">
+              Cancelar
+            </UButton>
+            <UButton 
+              color="primary" 
+              class="flex-1" 
+              :disabled="!newStatus || newStatus === selectedTransaction?.status"
+              @click="changeStatus"
+            >
+              Guardar Cambio
+            </UButton>
+          </div>
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>

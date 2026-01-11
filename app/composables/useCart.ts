@@ -1,32 +1,33 @@
-/**
- * Cart Store (Pinia)
- * Manages the shopping cart state for POS operations
- */
-
-import { defineStore } from 'pinia'
 import type { Product } from '~/types/database.types'
 
 export interface CartItem {
     product: Product
     quantity: number
-    discount: number // Discount amount per unit
+    discount: number
     subtotal: number
 }
 
-export const useCart = defineStore('cart', () => {
-    const items = ref<CartItem[]>([])
+export const useCart = () => {
+    const items = useState<CartItem[]>('cart-items', () => [])
 
-    // ===== ACTIONS =====
-
-    const addItem = (product: Product, quantity: number = 1) => {
+    const addItem = (product: Product, quantity: number = 1): { success: boolean; error?: string } => {
         const existingIndex = items.value.findIndex(item => item.product.id === product.id)
+        const currentQty = existingIndex >= 0 ? items.value[existingIndex]!.quantity : 0
+        const newQty = currentQty + quantity
+
+        const shouldValidateStock = !product.is_service && product.stock_quantity !== null && product.stock_quantity !== undefined
+
+        if (shouldValidateStock && newQty > product.stock_quantity!) {
+            return {
+                success: false,
+                error: `Stock insuficiente. Disponible: ${product.stock_quantity}, En carrito: ${currentQty}`
+            }
+        }
 
         if (existingIndex >= 0) {
-            // Product already in cart, increase quantity
-            items.value[existingIndex]!.quantity += quantity
+            items.value[existingIndex]!.quantity = newQty
             recalculateSubtotal(existingIndex)
         } else {
-            // New product
             items.value.push({
                 product,
                 quantity,
@@ -34,6 +35,7 @@ export const useCart = defineStore('cart', () => {
                 subtotal: product.price * quantity
             })
         }
+        return { success: true }
     }
 
     const removeItem = (productId: string) => {
@@ -43,14 +45,28 @@ export const useCart = defineStore('cart', () => {
         }
     }
 
-    const updateQuantity = (productId: string, quantity: number) => {
+    const updateQuantity = (productId: string, quantity: number): { success: boolean; error?: string } => {
         const index = items.value.findIndex(item => item.product.id === productId)
         if (index >= 0 && quantity > 0) {
+            const product = items.value[index]!.product
+
+            const shouldValidateStock = !product.is_service && product.stock_quantity !== null && product.stock_quantity !== undefined
+
+            if (shouldValidateStock && quantity > product.stock_quantity!) {
+                return {
+                    success: false,
+                    error: `Stock máximo disponible: ${product.stock_quantity}`
+                }
+            }
+
             items.value[index]!.quantity = quantity
             recalculateSubtotal(index)
+            return { success: true }
         } else if (quantity <= 0) {
             removeItem(productId)
+            return { success: true }
         }
+        return { success: false, error: 'Producto no encontrado' }
     }
 
     const applyItemDiscount = (productId: string, discountAmount: number) => {
@@ -65,8 +81,6 @@ export const useCart = defineStore('cart', () => {
         items.value = []
     }
 
-    // ===== HELPERS =====
-
     const recalculateSubtotal = (index: number) => {
         const item = items.value[index]
         if (item) {
@@ -74,8 +88,6 @@ export const useCart = defineStore('cart', () => {
             item.subtotal = priceAfterDiscount * item.quantity
         }
     }
-
-    // ===== COMPUTED =====
 
     const subtotal = computed(() => {
         return items.value.reduce((sum, item) => sum + (item.product.price * item.quantity), 0)
@@ -95,20 +107,17 @@ export const useCart = defineStore('cart', () => {
 
     const isEmpty = computed(() => items.value.length === 0)
 
-    return {
-        // State
+    return reactive({
         items,
-        // Actions
         addItem,
         removeItem,
         updateQuantity,
         applyItemDiscount,
         clearCart,
-        // Computed
         subtotal,
         totalDiscount,
         total,
         itemCount,
         isEmpty
-    }
-})
+    })
+}

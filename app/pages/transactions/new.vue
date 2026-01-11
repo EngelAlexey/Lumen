@@ -5,6 +5,7 @@ import type { Product } from '~/types/database.types'
 const { currentSession, fetchCurrentSession, loading: sessionLoading, fetchPaymentMethods, paymentMethods } = useCashRegister()
 const { getProducts } = useProducts()
 const { createTransaction, loading: transactionLoading } = useTransactions()
+const { labels, features, loadBusinessType } = useBusinessConfig()
 const cart = useCart()
 const toast = useToast()
 const router = useRouter()
@@ -83,7 +84,55 @@ onMounted(async () => {
   // Pre-select cash as default
   const cashMethod = paymentMethods.value.find(m => m.code === 'cash')
   if (cashMethod) selectedPaymentMethod.value = cashMethod.id
+
+  // Handle Query Params (Table / Order)
+  const route = useRoute()
+  if (route.query.table) {
+    tableNumber.value = route.query.table as string
+  }
+
+  if (route.query.orderId) {
+    await loadExistingOrder(route.query.orderId as string)
+  }
 })
+
+async function loadExistingOrder(orderId: string) {
+  // We need to implement a way to fetch a single transaction
+  // For now, we can reuse getTransactions with filter (not ideal but works if ID is unique)
+  // Actually, let's use supabase direct for now or add getTransactionById to composable later
+  // Let's iterate on useTransactions later. For now, simulate or fetch match.
+  // Wait, I can't easily fetch single transaction details with items without a helper.
+  // I will assume getTransactions returns items? The current implementation of getTransactions
+  // does select *, transaction_items(...) ? Let's check useTransactions. 
+  // If not, I'll need to update useTransactions.
+  // Let's assume for this step I will implement minimal loading logic here.
+  
+  const client = useSupabaseClient()
+  const { data, error } = await client
+    .from('transactions')
+    .select('*, transaction_items(*, product:products(*))')
+    .eq('id', orderId)
+    .single()
+
+  if (data) {
+     const order = data as any
+     tableNumber.value = order.table_number || ''
+     customerName.value = order.customer_name || ''
+     notes.value = order.notes || ''
+     
+     // Hydrate Cart
+     cart.clearCart()
+     if (order.transaction_items) {
+        order.transaction_items.forEach((item: any) => {
+           if (item.product) {
+              cart.addItem(item.product, item.quantity)
+           }
+        })
+     }
+     
+     toast.add({ title: 'Orden Cargada', description: `Mesa ${order.table_number}`, color: 'info' })
+  }
+}
 
 async function loadProducts() {
   productsLoading.value = true
@@ -107,7 +156,10 @@ function handleProductClick(product: Product) {
     return
   }
 
-  cart.addItem(product)
+  const result = cart.addItem(product)
+  if (!result.success) {
+    toast.add({ title: 'Stock Insuficiente', description: result.error, color: 'warning' })
+  }
 }
 
 function openPaymentModal() {
@@ -141,7 +193,8 @@ async function processPayment() {
     customerName: customerName.value || undefined,
     tableNumber: tableNumber.value || undefined,
     notes: notes.value || undefined,
-    paymentReference: paymentReference.value || undefined
+    paymentReference: paymentReference.value || undefined,
+    status: 'paid'
   })
 
   if (result.success) {
@@ -155,8 +208,59 @@ async function processPayment() {
     tableNumber.value = ''
     notes.value = ''
     paymentReference.value = ''
+    
+    // Reload products to update stock
+    await loadProducts()
   } else {
     toast.add({ title: 'Error', description: result.error, color: 'error' })
+  }
+}
+
+// Guardar como cuenta pendiente (para restaurantes)
+async function savePendingOrder() {
+  if (cart.isEmpty) {
+    toast.add({ title: 'Carrito Vacío', description: 'Agrega productos antes de guardar', color: 'warning' })
+    return
+  }
+
+  if (!currentSession.value?.id) {
+    toast.add({ title: 'Error', description: 'No hay sesión de caja activa', color: 'error' })
+    return
+  }
+
+  const result = await createTransaction({
+    cashSessionId: currentSession.value.id,
+    items: cart.items,
+    customerName: customerName.value || undefined,
+    tableNumber: tableNumber.value || undefined,
+    notes: notes.value || undefined,
+    status: 'pending' // Cuenta abierta
+  })
+
+  if (result.success) {
+    toast.add({ 
+      title: 'Cuenta Guardada', 
+      description: `Folio: ${result.transactionNumber}. Podrás cobrar después.`, 
+      color: 'success' 
+    })
+
+    // Reset form
+    cart.clearCart()
+    customerName.value = ''
+    tableNumber.value = ''
+    notes.value = ''
+    
+    // Reload products to update stock
+    await loadProducts()
+  } else {
+    toast.add({ title: 'Error', description: result.error, color: 'error' })
+  }
+}
+
+function updateItemQuantity(productId: string, quantity: number) {
+  const result = cart.updateQuantity(productId, quantity)
+  if (!result.success && result.error) {
+    toast.add({ title: 'Stock Insuficiente', description: result.error, color: 'warning' })
   }
 }
 
@@ -176,12 +280,15 @@ function goToHistory() {
       <div>
         <h1 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
           <UIcon name="i-heroicons-shopping-cart" class="w-6 h-6 text-primary-500" />
-          Punto de Venta
+          {{ labels.newTransaction }}
         </h1>
         <p class="text-sm text-gray-500">
           Caja: <span class="font-medium text-green-600">Abierta</span>
           <span class="mx-2">•</span>
           Inicio: {{ currentSession?.opening_cash ? `₡${currentSession.opening_cash.toLocaleString()}` : '-' }}
+          <span v-if="tableNumber" class="ml-4 px-2 py-1 bg-indigo-100 text-indigo-700 rounded-md font-bold">
+            Mesa {{ tableNumber }}
+          </span>
         </p>
       </div>
       <div class="flex gap-2">
@@ -303,7 +410,7 @@ function goToHistory() {
                     variant="soft"
                     icon="i-heroicons-minus"
                     size="xs"
-                    @click="cart.updateQuantity(item.product.id, item.quantity - 1)"
+                    @click="updateItemQuantity(item.product.id, item.quantity - 1)"
                   />
                   <span class="w-8 text-center font-mono font-bold">{{ item.quantity }}</span>
                   <UButton
@@ -311,7 +418,7 @@ function goToHistory() {
                     variant="soft"
                     icon="i-heroicons-plus"
                     size="xs"
-                    @click="cart.updateQuantity(item.product.id, item.quantity + 1)"
+                    @click="updateItemQuantity(item.product.id, item.quantity + 1)"
                   />
                 </div>
                 <span class="font-bold text-gray-900 dark:text-white">
@@ -347,6 +454,20 @@ function goToHistory() {
             @click="openPaymentModal"
           >
             Cobrar ₡{{ cart.total.toLocaleString() }}
+          </UButton>
+          
+          <!-- Botón para guardar como cuenta pendiente (solo si feature pendingOrders está activo) -->
+          <UButton
+            v-if="features.pendingOrders"
+            block
+            size="lg"
+            color="warning"
+            variant="outline"
+            icon="i-heroicons-clock"
+            :disabled="cart.isEmpty"
+            @click="savePendingOrder"
+          >
+            Guardar Cuenta (Cobrar Después)
           </UButton>
         </div>
       </div>

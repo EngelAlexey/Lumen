@@ -1,19 +1,10 @@
-/**
- * Authentication Composable
- * Handles user authentication, registration, and session management
- */
-
 import type { Database } from '~/types/database.types'
 
 export const useAuth = () => {
-    // CORRECCIÓN: Usamos <any> para evitar el error 'parameter of type never' en los updates
     const supabase = useSupabaseClient<any>()
     const user = useSupabaseUser()
     const router = useRouter()
 
-    /**
-     * Register a new user with business
-     */
     const register = async (userData: {
         email: string
         password: string
@@ -24,7 +15,6 @@ export const useAuth = () => {
         address?: string
     }) => {
         try {
-            // 1. Create business first (using RPC to bypass RLS)
             const { data: business, error: businessError } = await supabase
                 .rpc('create_initial_business', {
                     p_name: userData.businessName,
@@ -38,7 +28,6 @@ export const useAuth = () => {
 
             const biz = business as any
 
-            // 2. Create auth user with metadata
             const { data: authData, error: authError } = await supabase.auth.signUp({
                 email: userData.email,
                 password: userData.password,
@@ -54,7 +43,6 @@ export const useAuth = () => {
 
             if (authError) throw authError
 
-            // 3. Update business owner_id
             await supabase
                 .from('businesses')
                 .update({ owner_id: authData.user?.id })
@@ -67,9 +55,6 @@ export const useAuth = () => {
         }
     }
 
-    /**
-     * Login user
-     */
     const login = async (email: string, password: string) => {
         try {
             const { data, error } = await supabase.auth.signInWithPassword({
@@ -79,9 +64,6 @@ export const useAuth = () => {
 
             if (error) throw error
 
-            // OPTIMIZACIÓN: No bloqueamos el login esperando el rol. 
-            // El layout se encarga de eso.
-
             return { success: true, user: data.user }
         } catch (error: any) {
             console.error('Login error:', error)
@@ -89,9 +71,6 @@ export const useAuth = () => {
         }
     }
 
-    /**
-     * Logout user
-     */
     const logout = async () => {
         try {
             await supabase.auth.signOut()
@@ -103,9 +82,6 @@ export const useAuth = () => {
         }
     }
 
-    /**
-     * Get current user profile with business info
-     */
     const getUserProfile = async () => {
         try {
             const { data, error } = await supabase
@@ -130,17 +106,21 @@ export const useAuth = () => {
         }
     }
 
-    /**
-     * Update user profile
-     */
     const updateProfile = async (updates: {
         full_name?: string
     }) => {
         try {
+            const { data: sessionData } = await supabase.auth.getSession()
+            const userId = sessionData?.session?.user?.id
+
+            if (!userId) {
+                return { success: false, error: 'No autenticado' }
+            }
+
             const { error } = await supabase
                 .from('users')
                 .update(updates)
-                .eq('id', user.value?.id)
+                .eq('id', userId)
 
             if (error) throw error
 
@@ -151,9 +131,6 @@ export const useAuth = () => {
         }
     }
 
-    /**
-     * Update business details
-     */
     const updateBusiness = async (updates: {
         name?: string
         phone?: string
@@ -161,11 +138,17 @@ export const useAuth = () => {
         business_type?: string
     }) => {
         try {
-            // Get business_id from user profile first
+            const { data: sessionData } = await supabase.auth.getSession()
+            const userId = sessionData?.session?.user?.id
+
+            if (!userId) {
+                return { success: false, error: 'No autenticado' }
+            }
+
             const { data: userData, error: userError } = await supabase
                 .from('users')
                 .select('business_id')
-                .eq('id', user.value?.id)
+                .eq('id', userId)
                 .single()
 
             if (userError || !userData?.business_id) throw new Error('Usuario sin negocio asignado')
@@ -185,13 +168,16 @@ export const useAuth = () => {
     }
 
     const getBusinessType = async () => {
-        if (!user.value?.id) return 'retail'
-
         try {
+            const { data: sessionData } = await supabase.auth.getSession()
+            const userId = sessionData?.session?.user?.id
+
+            if (!userId) return 'retail'
+
             const { data, error } = await supabase
                 .from('users')
                 .select('business_id, businesses(business_type)')
-                .eq('id', user.value.id)
+                .eq('id', userId)
                 .single()
 
             if (error) throw error

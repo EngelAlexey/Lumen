@@ -2,8 +2,9 @@
 import * as z from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
 
-const { getProducts, createProduct, deleteProduct } = useProducts()
+const { getProducts, createProduct, updateProduct, deleteProduct } = useProducts()
 const { getBusinessType } = useAuth()
+const { labels, features, businessType } = useBusinessConfig()
 const toast = useToast()
 
 const loading = ref(true)
@@ -11,6 +12,8 @@ const products = ref<any[]>([])
 const showModal = ref(false)
 const saving = ref(false)
 const currentBusinessType = ref('retail')
+const isEditing = ref(false)
+const editingProductId = ref<string | null>(null)
 
 // Configuración Normalizada de Sectores
 const sectorConfig: Record<string, any[]> = {
@@ -60,6 +63,7 @@ const state = reactive({
   category: '',
   sku: '',
   description: '',
+  is_service: false,
   metadata: {} as Record<string, any>
 })
 
@@ -108,7 +112,32 @@ async function loadData() {
   loading.value = false
 }
 
-async function handleCreate(event: FormSubmitEvent<any>) {
+function openCreateModal() {
+  isEditing.value = false
+  editingProductId.value = null
+  resetForm()
+  showModal.value = true
+}
+
+function openEditModal(product: any) {
+  isEditing.value = true
+  editingProductId.value = product.id
+  
+  // Populate form with product data
+  state.name = product.name
+  state.price = product.price
+  state.cost = product.cost || 0
+  state.stock_quantity = product.stock_quantity || 0
+  state.category = product.category || ''
+  state.sku = product.sku || ''
+  state.description = product.description || ''
+  state.is_service = product.is_service || false
+  state.metadata = product.metadata || {}
+  
+  showModal.value = true
+}
+
+async function handleSubmit(event: FormSubmitEvent<any>) {
   for (const field of dynamicFields.value) {
     if (field.required && !state.metadata[field.key]) {
       toast.add({ title: 'Falta información', description: `El campo ${field.label} es requerido`, color: 'warning' })
@@ -126,18 +155,28 @@ async function handleCreate(event: FormSubmitEvent<any>) {
     category: state.category,
     sku: state.sku,
     description: state.description,
+    is_service: state.is_service,
     metadata: state.metadata
   }
 
-  const { success, error } = await createProduct(productData)
+  let result
   
-  if (success) {
-    toast.add({ title: 'Guardado exitosamente', color: 'success' })
+  if (isEditing.value && editingProductId.value) {
+    result = await updateProduct(editingProductId.value, productData)
+  } else {
+    result = await createProduct(productData)
+  }
+  
+  if (result.success) {
+    toast.add({ 
+      title: isEditing.value ? 'Producto actualizado' : 'Producto creado', 
+      color: 'success' 
+    })
     showModal.value = false
     resetForm()
     loadData()
   } else {
-    toast.add({ title: 'Error', description: error, color: 'error' })
+    toast.add({ title: 'Error', description: result.error, color: 'error' })
   }
   saving.value = false
 }
@@ -150,6 +189,7 @@ function resetForm() {
   state.category = ''
   state.sku = ''
   state.description = ''
+  state.is_service = false
   state.metadata = {}
 }
 
@@ -169,6 +209,17 @@ async function handleDelete(id: string) {
   }
 }
 
+// Quick stock update
+async function quickStockUpdate(product: any, delta: number) {
+  const newStock = Math.max(0, (product.stock_quantity || 0) + delta)
+  const { success } = await updateProduct(product.id, { stock_quantity: newStock })
+  
+  if (success) {
+    product.stock_quantity = newStock
+    toast.add({ title: 'Stock actualizado', color: 'success' })
+  }
+}
+
 onMounted(() => {
   loadData()
 })
@@ -179,28 +230,52 @@ onMounted(() => {
     <div class="flex justify-between items-center">
       <div>
         <h2 class="text-xl font-bold text-gray-900 dark:text-white capitalize">
-          {{ currentBusinessType === 'services' ? 'Catálogo de Servicios' : 'Inventario de Productos' }}
+          {{ labels.products }}
         </h2>
         <p class="text-sm text-gray-500">
           Modo: <span class="font-semibold text-primary-600 capitalize">{{ currentBusinessType }}</span>
+          <span v-if="features.stock" class="ml-2 text-green-600">• Control de Stock activo</span>
         </p>
       </div>
-      <UButton icon="i-heroicons-plus" color="primary" @click="showModal = true">
-        {{ currentBusinessType === 'services' ? 'Nuevo Servicio' : 'Nuevo Producto' }}
+      <UButton icon="i-heroicons-plus" color="primary" @click="openCreateModal">
+        Nuevo {{ currentBusinessType === 'services' ? 'Servicio' : (currentBusinessType === 'gastronomy' ? 'Platillo' : 'Producto') }}
       </UButton>
     </div>
 
     <UCard>
       <UTable :columns="columns" :data="products" :loading="loading">
+        <template #name-cell="{ row }">
+          <div class="flex items-center gap-2">
+            <UIcon v-if="row.original.is_service" name="i-heroicons-wrench-screwdriver" class="w-4 h-4 text-blue-500" />
+            <span class="font-medium">{{ row.original.name }}</span>
+          </div>
+        </template>
+        
         <template #price-cell="{ row }">
           <span class="font-medium">₡{{ row.original.price.toLocaleString() }}</span>
         </template>
         
         <template #stock_quantity-cell="{ row }">
-          <span v-if="currentBusinessType === 'services'" class="text-gray-400 text-xs">N/A</span>
-          <UBadge v-else :color="row.original.stock_quantity < 5 ? 'error' : 'success'" variant="subtle">
-            {{ row.original.stock_quantity }}
-          </UBadge>
+          <div v-if="row.original.is_service" class="text-gray-400 text-xs">N/A</div>
+          <div v-else class="flex items-center gap-2">
+            <UButton 
+              size="xs" 
+              variant="ghost" 
+              color="neutral" 
+              icon="i-heroicons-minus"
+              @click="quickStockUpdate(row.original, -1)"
+            />
+            <UBadge :color="row.original.stock_quantity < 5 ? 'error' : 'success'" variant="subtle">
+              {{ row.original.stock_quantity || 0 }}
+            </UBadge>
+            <UButton 
+              size="xs" 
+              variant="ghost" 
+              color="neutral" 
+              icon="i-heroicons-plus"
+              @click="quickStockUpdate(row.original, 1)"
+            />
+          </div>
         </template>
 
         <template #metadata.expiration_date-cell="{ row }">
@@ -217,16 +292,29 @@ onMounted(() => {
         </template>
 
         <template #actions-cell="{ row }">
-          <div class="flex justify-end">
-            <UButton color="error" variant="ghost" icon="i-heroicons-trash" size="xs" @click="handleDelete(row.original.id)" />
+          <div class="flex justify-end gap-1">
+            <UButton 
+              color="primary" 
+              variant="ghost" 
+              icon="i-heroicons-pencil" 
+              size="xs" 
+              @click="openEditModal(row.original)" 
+            />
+            <UButton 
+              color="error" 
+              variant="ghost" 
+              icon="i-heroicons-trash" 
+              size="xs" 
+              @click="handleDelete(row.original.id)" 
+            />
           </div>
         </template>
       </UTable>
     </UCard>
 
-    <UModal v-model:open="showModal" title="Nuevo Producto">
+    <UModal v-model:open="showModal" :title="isEditing ? 'Editar Producto' : 'Nuevo Producto'">
       <template #body>
-        <UForm :schema="baseSchema" :state="state" class="space-y-4" @submit="handleCreate">
+        <UForm :schema="baseSchema" :state="state" class="space-y-4" @submit="handleSubmit">
           
           <div class="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800">
             <h3 class="text-sm font-semibold text-primary-600 mb-3 uppercase tracking-wider">Datos Básicos</h3>
@@ -243,13 +331,13 @@ onMounted(() => {
                 </UInput>
               </UFormField>
 
-              <UFormField v-if="currentBusinessType !== 'services'" label="Stock" name="stock_quantity">
+              <UFormField label="Stock" name="stock_quantity">
                 <UInput v-model.number="state.stock_quantity" type="number" icon="i-heroicons-cube" placeholder="0" />
               </UFormField>
               
-              <UFormField v-else label="Stock (Opcional)" name="stock_quantity" help="Dejar en 0 si es ilimitado">
-                 <UInput v-model.number="state.stock_quantity" type="number" icon="i-heroicons-cube" />
-              </UFormField>
+              <div class="md:col-span-2">
+                <UCheckbox v-model="state.is_service" label="Es un servicio (no controla inventario)" color="primary" />
+              </div>
             </div>
           </div>
 
@@ -311,7 +399,9 @@ onMounted(() => {
 
           <div class="flex justify-end gap-2 mt-6">
             <UButton color="neutral" variant="ghost" @click="showModal = false">Cancelar</UButton>
-            <UButton type="submit" :loading="saving" color="primary">Guardar</UButton>
+            <UButton type="submit" :loading="saving" color="primary">
+              {{ isEditing ? 'Guardar Cambios' : 'Crear Producto' }}
+            </UButton>
           </div>
         </UForm>
       </template>

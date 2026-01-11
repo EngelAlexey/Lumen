@@ -4,46 +4,21 @@
     <aside class="sidebar">
       <div class="sidebar-header">
         <h1 class="logo">
-          <LightBulbIcon class="logo-icon" />
+          <UIcon name="i-heroicons-light-bulb" class="logo-icon w-8 h-8" />
           Lumen
         </h1>
-        <p class="tagline">Control Financiero</p>
+        <p class="tagline">{{ businessConfig.name }}</p>
       </div>
       
       <nav class="nav-menu">
-        <NuxtLink to="/dashboard" class="nav-item">
-          <ChartBarIcon class="nav-icon" />
-          <span>Dashboard</span>
-        </NuxtLink>
-        
-        <NuxtLink to="/transactions" class="nav-item">
-          <CreditCardIcon class="nav-icon" />
-          <span>Transacciones</span>
-        </NuxtLink>
-        
-        <NuxtLink to="/cash-register" class="nav-item">
-          <BanknotesIcon class="nav-icon" />
-          <span>Caja</span>
-        </NuxtLink>
-        
-        <NuxtLink to="/products" class="nav-item">
-          <CubeIcon class="nav-icon" />
-          <span>Productos</span>
-        </NuxtLink>
-        
-        <NuxtLink to="/users" class="nav-item" v-if="isAdmin">
-          <UsersIcon class="nav-icon" />
-          <span>Usuarios</span>
-        </NuxtLink>
-        
-        <NuxtLink to="/reports" class="nav-item">
-          <ChartPieIcon class="nav-icon" />
-          <span>Reportes</span>
-        </NuxtLink>
-        
-        <NuxtLink to="/settings" class="nav-item">
-          <Cog6ToothIcon class="nav-icon" />
-          <span>Configuración</span>
+        <NuxtLink 
+          v-for="item in navigation" 
+          :key="item.to" 
+          :to="item.to" 
+          class="nav-item"
+        >
+          <UIcon :name="item.icon" class="nav-icon w-5 h-5" />
+          <span>{{ item.label }}</span>
         </NuxtLink>
       </nav>
       
@@ -93,16 +68,8 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import {
-  LightBulbIcon,
-  ChartBarIcon,
-  CreditCardIcon,
-  BanknotesIcon,
-  CubeIcon,
-  UsersIcon,
-  ChartPieIcon,
-  Cog6ToothIcon,
   UserCircleIcon,
   ArrowRightOnRectangleIcon,
   CalendarIcon,
@@ -114,20 +81,26 @@ const user = useSupabaseUser()
 const router = useRouter()
 const route = useRoute()
 const { currentRole, isAdmin, fetchCurrentRole, getRoleLabel, isLoading } = useRoles()
+const { navigation, config: businessConfig, labels, loadBusinessType, isLoaded: businessLoaded } = useBusinessConfig()
 
 // User profile data
-const userProfile = ref(null)
+interface UserProfile {
+  full_name: string
+  email: string
+}
+const userProfile = ref<UserProfile | null>(null)
 
 // User Info
 const userInitials = computed(() => {
   if (userProfile.value?.full_name) {
     const names = userProfile.value.full_name.split(' ')
-    return names.length > 1 
-      ? (names[0][0] + names[names.length - 1][0]).toUpperCase()
-      : names[0].substring(0, 2).toUpperCase()
+    if (names.length > 1 && names[0] && names[names.length - 1]) {
+      return (names[0][0] + names[names.length - 1][0]).toUpperCase()
+    }
+    return names[0]?.substring(0, 2).toUpperCase() || 'US'
   }
   const email = user.value?.email || ''
-  return email.substring(0, 2).toUpperCase()
+  return email.substring(0, 2).toUpperCase() || 'US'
 })
 
 const userName = computed(() => {
@@ -178,18 +151,29 @@ onMounted(() => {
   })
 })
 
-// Page Title
+// Page Title - Adapted based on business config
 const pageTitle = computed(() => {
-  const titles = {
+  const path = route.path
+  
+  // Find matching nav item for dynamic label
+  const navItem = navigation.value.find((item: { to: string }) => 
+    path === item.to || path.startsWith(item.to + '/')
+  )
+  if (navItem) return navItem.label
+  
+  // Fallback static titles
+  const titles: Record<string, string> = {
     '/dashboard': 'Dashboard',
-    '/transactions': 'Transacciones',
-    '/cash-register': 'Caja Registradora',
-    '/products': 'Productos',
+    '/transactions/new': labels.value.newTransaction,
+    '/transactions': labels.value.transactions,
+    '/cash-register': 'Caja',
+    '/products': labels.value.products,
     '/users': 'Gestión de Usuarios',
     '/reports': 'Reportes',
-    '/settings': 'Configuración'
+    '/settings': 'Configuración',
+    '/customers': 'Clientes'
   }
-  return titles[route.path] || 'Lumen'
+  return titles[path] || 'Lumen'
 })
 
 // Current Date & Time
@@ -210,9 +194,12 @@ const updateDateTime = () => {
   })
 }
 
-onMounted(() => {
+onMounted(async () => {
   updateDateTime()
-  setInterval(updateDateTime, 60000) // Update every minute
+  setInterval(updateDateTime, 60000)
+  
+  // Load business type for dynamic menu
+  await loadBusinessType()
 })
 
 // Logout
