@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const { fetchProfile } = useAuth()
+const store = useBusinessStore()
 const router = useRouter()
 
 definePageMeta({
@@ -7,11 +7,32 @@ definePageMeta({
 })
 
 onMounted(async () => {
-  // Wait briefly for webhook to process, then redirect to dashboard
-  setTimeout(async () => {
-    await fetchProfile()
-    router.push('/dashboard')
-  }, 3000) // 3 seconds is enough for the webhook to process
+    // Poll for subscription activation due to webhook latency
+    const maxAttempts = 15 // 30 seconds max (2s interval)
+    let attempts = 0
+
+    const pollSubscription = async () => {
+        attempts++
+        await store.fetchSessionData(true)
+        
+        if (store.isSubscriptionActive) {
+            console.log('[Success] Subscription activated, redirecting...')
+            router.push('/dashboard')
+            return
+        }
+
+        if (attempts >= maxAttempts) {
+            console.warn('[Success] Webhook timeout, redirecting anyway...')
+            router.push('/dashboard')
+            return
+        }
+
+        // Retry after 2s
+        setTimeout(pollSubscription, 2000)
+    }
+
+    // Start polling immediate
+    pollSubscription()
 })
 </script>
 

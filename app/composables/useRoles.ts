@@ -11,9 +11,9 @@ export const useRoles = () => {
         let id = userId || user.value?.id
 
         if (!id) {
-            const { data } = await supabase.auth.getSession()
-            if (data.session?.user) {
-                id = data.session.user.id
+            const { data } = await supabase.auth.getUser()
+            if (data.user) {
+                id = data.user.id
             }
         }
 

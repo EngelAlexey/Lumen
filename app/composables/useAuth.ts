@@ -97,6 +97,29 @@ export const useAuth = () => {
 
             if (authError) throw authError
 
+            // Manual Business Creation via Server Endpoint (Bypasses RLS & Auth Context issues)
+            if (authData.user) {
+                const userId = authData.user.id
+
+                try {
+                    await $fetch('/api/auth/create-business', {
+                        method: 'POST',
+                        body: {
+                            userId,
+                            businessName: data.businessName,
+                            businessType: data.businessType,
+                            phone: data.phone,
+                            address: data.address,
+                            selectedPlan: data.selectedPlan
+                        }
+                    })
+                    console.log('[Auth] Business created successfully via server endpoint')
+                } catch (apiError) {
+                    console.error('[Auth] Failed to create business via API:', apiError)
+                    // Continue flow - self-repair in create-checkout handles redundancy
+                }
+            }
+
             return {
                 ...authData,
                 success: true
@@ -294,6 +317,30 @@ export const useAuth = () => {
         }
     })
 
+    const initSessionKeeper = () => {
+        if (!import.meta.client) return
+
+        const heartbeat = async () => {
+            const { error } = await client.auth.getSession()
+            if (error) console.error('[Auth] Session heartbeat failed:', error)
+        }
+
+        // Heartbeat every 5 minutes
+        setInterval(heartbeat, 5 * 60 * 1000)
+
+        // Heartbeat on window focus
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                heartbeat()
+            }
+        })
+
+        // Heartbeat on reconnection
+        window.addEventListener('online', () => {
+            heartbeat()
+        })
+    }
+
     return {
         user,
         profile,
@@ -310,6 +357,7 @@ export const useAuth = () => {
         updateProfile,
         updateBusiness,
         ensureBusinessExists,
-        getBusinessType
+        getBusinessType,
+        initSessionKeeper
     }
 }

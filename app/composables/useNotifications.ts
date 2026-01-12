@@ -11,7 +11,6 @@ export interface Notification {
 }
 
 
-// Global state to track subscription status
 const isSubscribed = ref(false)
 let realtimeChannel: any = null
 
@@ -24,7 +23,6 @@ export const useNotifications = () => {
     const unreadCount = computed(() => notifications.value.filter(n => !n.read).length)
     const loading = useState('notifications_loading', () => false)
 
-    // Fetch notifications from database
     const fetchNotifications = async () => {
         if (!user.value?.id || !profile.value?.business_id) return
 
@@ -38,7 +36,6 @@ export const useNotifications = () => {
                 .limit(50)
 
             if (!error && data) {
-                // Merge new notifications avoiding duplicates
                 const existingIds = new Set(notifications.value.map(n => n.id))
                 const newNotifs = data.filter((n: any) => !existingIds.has(n.id))
                 notifications.value = [...newNotifs, ...notifications.value].sort(
@@ -52,13 +49,10 @@ export const useNotifications = () => {
         }
     }
 
-    // Add a new notification (in-memory & UI update)
     const addNotification = (notification: Omit<Notification, 'id' | 'created_at' | 'read'>) => {
-        // Check if already exists to prevent duplication
         const exists = notifications.value.some(n =>
             n.type === notification.type &&
             n.data?.transaction_id === notification.data?.transaction_id &&
-            // Simple debounce: avoid duplicate within last 5 seconds
             (new Date().getTime() - new Date(n.created_at).getTime() < 5000)
         )
 
@@ -72,7 +66,6 @@ export const useNotifications = () => {
         }
         notifications.value.unshift(newNotif)
 
-        // Show Toast
         const toast = useToast()
         toast.add({
             title: notification.title,
@@ -82,9 +75,7 @@ export const useNotifications = () => {
         })
     }
 
-    // Mark notification as read
     const markAsRead = async (notificationId: string) => {
-        // Optimistic update
         const notif = notifications.value.find(n => n.id === notificationId)
         if (notif) notif.read = true
 
@@ -94,19 +85,16 @@ export const useNotifications = () => {
             .eq('id', notificationId)
 
         if (error) {
-            // Revert if failed
             if (notif) notif.read = false
         }
     }
 
-    // Mark all as read
     const markAllAsRead = async () => {
         if (!profile.value?.business_id) return
 
         const unreadIds = notifications.value.filter(n => !n.read).map(n => n.id)
         if (unreadIds.length === 0) return
 
-        // Optimistic update
         notifications.value.forEach(n => n.read = true)
 
         const { error } = await supabase
@@ -114,18 +102,11 @@ export const useNotifications = () => {
             .update({ read: true })
             .eq('business_id', profile.value.business_id)
             .eq('read', false)
-
-        if (error) {
-            // Revert logic is complex here, generally okay to leave as read in UI until refresh
-            console.error('Error marking all read:', error)
-        }
     }
 
-    // Initialize Subscription
     const initSubscription = () => {
         if (isSubscribed.value || !profile.value?.business_id) return
 
-        // Cleanup existing channel if any (safety)
         if (realtimeChannel) supabase.removeChannel(realtimeChannel)
 
         console.log('[Notifications] Initializing Realtime Subscription...')
@@ -135,39 +116,24 @@ export const useNotifications = () => {
             .on(
                 'postgres_changes',
                 {
-                    event: 'UPDATE',
+                    event: 'INSERT',
                     schema: 'public',
-                    table: 'transactions',
+                    table: 'notifications',
                     filter: `business_id=eq.${profile.value.business_id}`
                 },
-                async (payload: any) => {
-                    console.log('[Notifications] Transaction Realtime Event:', payload)
+                (payload: any) => {
+                    console.log('[Notifications] Realtime Notification Received:', payload)
+                    const newNotif = payload.new as Notification
 
-                    // Transaction Paid
-                    if (payload.new.status === 'paid' && payload.old.status === 'pending') {
-                        // Fetch partial details needed for notification
-                        const { data: transaction } = await supabase
-                            .from('transactions')
-                            .select('transaction_number, transaction_items(product:products(name))')
-                            .eq('id', payload.new.id)
-                            .single()
+                    notifications.value.unshift(newNotif)
 
-                        if (transaction) {
-                            const productNames = transaction.transaction_items
-                                ?.map((item: any) => item.product?.name)
-                                .filter(Boolean)
-                                .join(', ') || 'Productos varios'
-
-                            addNotification({
-                                user_id: user.value!.id,
-                                business_id: profile.value!.business_id,
-                                type: 'transaction_paid',
-                                title: '¡Pago Recibido!',
-                                message: `Venta #${transaction.transaction_number} pagada. ${productNames}`,
-                                data: { transaction_id: payload.new.id }
-                            })
-                        }
-                    }
+                    const toast = useToast()
+                    toast.add({
+                        title: newNotif.title,
+                        description: newNotif.message,
+                        color: 'success',
+                        icon: 'i-heroicons-check-circle'
+                    })
                 }
             )
             .subscribe((status: string) => {
@@ -178,7 +144,6 @@ export const useNotifications = () => {
             })
     }
 
-    // Public method to start listening
     const subscribe = () => {
         if (!isSubscribed.value) {
             fetchNotifications()
@@ -186,7 +151,6 @@ export const useNotifications = () => {
         }
     }
 
-    // Setup watcher to init when profile loads
     watch(() => profile.value?.business_id, (newId) => {
         if (newId) {
             subscribe()
@@ -200,6 +164,6 @@ export const useNotifications = () => {
         fetchNotifications,
         markAsRead,
         markAllAsRead,
-        subscribe // Expose subscribe explicitly
+        subscribe
     }
 }

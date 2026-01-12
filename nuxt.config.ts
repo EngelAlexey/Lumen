@@ -6,8 +6,26 @@ export default defineNuxtConfig({
 
   modules: [
     '@nuxtjs/supabase',
-    '@nuxt/ui'
+    '@nuxt/ui',
+    '@pinia/nuxt',
+    '@pinia-plugin-persistedstate/nuxt',
+    '@nuxtjs/i18n'
   ],
+
+  i18n: {
+    langDir: 'locales', // Ensure this is correct relative to srcDir
+    locales: [
+      { code: 'es', file: 'es.json', name: 'Español' },
+      { code: 'en', file: 'en.json', name: 'English' }
+    ],
+    defaultLocale: 'es',
+    strategy: 'prefix_except_default',
+    detectBrowserLanguage: {
+      useCookie: true,
+      cookieKey: 'i18n_redirected',
+      redirectOn: 'root'
+    }
+  },
 
   supabase: {
     serviceKey: process.env.SUPABASE_SERVICE_KEY,

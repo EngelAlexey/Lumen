@@ -90,7 +90,7 @@ export default defineEventHandler(async (event) => {
             const supabase = serverSupabaseServiceRole(event) as any
 
             // Update Transaction
-            const { error } = await supabase
+            const { data: transaction, error } = await supabase
                 .from('transactions')
                 .update({
                     status: 'paid',
@@ -99,11 +99,24 @@ export default defineEventHandler(async (event) => {
                     stripe_payment_intent_id: session.payment_intent as string
                 })
                 .eq('id', transactionId)
+                .select()
+                .single()
 
             if (error) {
                 console.error('❌ Error actualizando transacción:', error)
-            } else {
+            } else if (transaction) {
                 console.log(`✅ PAYMENT CHECKOUT: Transacción ${transactionId} marcada como pagada.`)
+
+                // Create Notification
+                await supabase.from('notifications').insert({
+                    user_id: transaction.served_by, // Notify the waiter/creator
+                    business_id: transaction.business_id,
+                    type: 'transaction_paid',
+                    title: '¡Pago Online Recibido!',
+                    message: `Venta #${transaction.transaction_number || transaction.id.slice(0, 8)} pagada vía Stripe.`,
+                    data: { transaction_id: transaction.id },
+                    read: false
+                })
             }
         }
 
@@ -111,30 +124,25 @@ export default defineEventHandler(async (event) => {
         const subscription = stripeEvent.data.object as Stripe.Subscription
         const customerId = subscription.customer as string
 
-        // Find business by stripe_customer_id to get the user/owner
         const supabase = serverSupabaseServiceRole(event) as any
         const { data: business } = await supabase
             .from('businesses')
-            .select('owner_id')
+            .select('owner_id, stripe_subscription_id')
             .eq('stripe_customer_id', customerId)
             .single()
 
         if (business?.owner_id) {
             const status = subscription.status
 
-            // Update Business
+            if (business.stripe_subscription_id && business.stripe_subscription_id !== subscription.id) {
+                console.log(`⚠️ Webhook: Ignorando evento para suscripción ${subscription.id} (DB tiene ${business.stripe_subscription_id})`)
+                return { received: true }
+            }
+
             await supabase
                 .from('businesses')
                 .update({ subscription_status: status })
                 .eq('owner_id', business.owner_id)
-
-            // Update User - REMOVED: Table users does not have subscription_status
-            /*
-            await supabase
-                .from('users')
-                .update({ subscription_status: status })
-                .eq('id', business.owner_id)
-            */
 
             console.log(`🔄 SUBSCRIPTION (${eventType}): Usuario ${business.owner_id} estado actualizado a ${status}`)
         } else {

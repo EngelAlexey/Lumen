@@ -137,7 +137,7 @@ export const useTransactions = () => {
         paymentReference?: string
     }) => {
         try {
-            const { error } = await supabase
+            const { data: transaction, error } = await supabase
                 .from('transactions')
                 .update({
                     status: 'paid',
@@ -146,6 +146,26 @@ export const useTransactions = () => {
                     paid_at: new Date().toISOString()
                 })
                 .eq('id', transactionId)
+                .select()
+                .single()
+
+            if (error) throw error
+
+            if (transaction) {
+                const { error: notifError } = await supabase
+                    .from('notifications')
+                    .insert({
+                        user_id: user.value?.id,
+                        business_id: transaction.business_id,
+                        type: 'transaction_paid',
+                        title: '¡Pago Recibido!',
+                        message: `Venta #${transaction.transaction_number} ha sido cobrada exitosamente.`,
+                        data: { transaction_id: transaction.id },
+                        read: false
+                    })
+
+                if (notifError) console.error('Error creating notification:', notifError)
+            }
 
             if (error) throw error
 

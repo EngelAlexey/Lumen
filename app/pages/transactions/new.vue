@@ -3,9 +3,10 @@ import type { Product } from '~/types/database.types'
 
 // Composables
 const { currentSession, fetchCurrentSession, loading: sessionLoading, fetchPaymentMethods, paymentMethods } = useCashRegister()
-const { getProducts } = useProducts()
+const { getProducts, subscribeToStockUpdates } = useProducts()
 const { createTransaction, createStripePayment, loading: transactionLoading } = useTransactions()
 const { labels, features, loadBusinessType } = useBusinessConfig()
+const businessStore = useBusinessStore()
 const cart = useCart()
 const toast = useToast()
 const router = useRouter()
@@ -115,6 +116,25 @@ onMounted(async () => {
     loadProducts(),
     fetchPaymentMethods()
   ])
+  
+  // Realtime Stock Subscription
+  if (currentSession.value?.business_id) {
+     subscribeToStockUpdates(currentSession.value.business_id, (payload) => {
+        const newItem = payload.new as Product | null
+        if (newItem && newItem.id) {
+           const idx = products.value.findIndex(p => p.id === newItem.id)
+           if (idx !== -1) {
+              // Update stock locally
+              products.value[idx].stock_quantity = newItem.stock_quantity
+              
+              // Optional: Toast for low stock?
+              if ((newItem.stock_quantity || 0) <= 0) {
+                 // toast.add({ title: 'Agotado', description: `${products.value[idx].name} se ha agotado`, color: 'orange' })
+              }
+           }
+        }
+     })
+  }
 
   // Pre-select cash as default
   const cashMethod = paymentMethods.value.find(m => m.code === 'cash')
@@ -769,3 +789,4 @@ function goToHistory() {
     </UModal>
 
 </template>
+

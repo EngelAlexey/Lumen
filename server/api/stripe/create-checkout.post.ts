@@ -7,6 +7,9 @@ export default defineEventHandler(async (event) => {
         apiVersion: '2025-12-15.clover',
     })
 
+    const headers = event.node.req.headers
+    const origin = headers.origin || headers.referer?.replace(/\/$/, '') || config.public.siteUrl
+
     const user = await serverSupabaseUser(event)
     if (!user) {
         throw createError({
@@ -41,11 +44,45 @@ export default defineEventHandler(async (event) => {
     const supabase = await serverSupabaseClient(event) as any
     const { data: business } = await supabase
         .from('businesses')
-        .select('stripe_customer_id, name')
+        .select('id, stripe_customer_id, name')
         .eq('owner_id', userId)
-        .single() as { data: any, error: any }
+        .maybeSingle() as { data: any, error: any }
 
     let customerId = business?.stripe_customer_id
+    let businessId = business?.id
+
+    // Self-repair: Create business if missing
+    if (!business) {
+        console.log('[CreateCheckout] Business not found, creating new record for user:', userId)
+
+        const metadata = user.user_metadata || {}
+
+        const { data: newBusiness, error: createError } = await supabase
+            .from('businesses')
+            .insert({
+                owner_id: userId,
+                name: metadata.business_name || 'Mi Negocio',
+                business_type: metadata.business_type || 'retail',
+                phone: metadata.phone || null,
+                address: metadata.address || null
+            })
+            .select()
+            .single()
+
+        if (createError || !newBusiness) {
+            console.error('[CreateCheckout] Failed to create business:', createError)
+            throw createError({ statusCode: 500, message: 'Failed to initialize business' })
+        }
+
+        businessId = newBusiness.id
+        console.log('[CreateCheckout] Created business:', businessId)
+
+        // Link business to user
+        await supabase
+            .from('users')
+            .update({ business_id: businessId })
+            .eq('id', userId)
+    }
 
     if (!customerId) {
         const full_name = user.user_metadata?.full_name || user.email
@@ -61,7 +98,7 @@ export default defineEventHandler(async (event) => {
         await supabase
             .from('businesses')
             .update({ stripe_customer_id: customerId })
-            .eq('owner_id', userId)
+            .eq('id', businessId)
     }
 
     try {
@@ -94,8 +131,8 @@ export default defineEventHandler(async (event) => {
             },
             client_reference_id: userId,
 
-            success_url: `${config.public.siteUrl}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
-            cancel_url: `${config.public.siteUrl}/pricing?canceled=true`,
+            success_url: `${origin}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
+            cancel_url: `${origin}/pricing?canceled=true`,
         })
 
         console.log('Stripe session created:', session.url)

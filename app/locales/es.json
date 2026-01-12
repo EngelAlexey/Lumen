@@ -1,0 +1,227 @@
+{
+    "validation": {
+        "email_invalid": "Correo electrónico inválido",
+        "password_min_length": "La contraseña debe tener al menos 8 caracteres",
+        "passwords_dont_match": "Las contraseñas no coinciden",
+        "name_too_short": "El nombre es muy corto",
+        "required_field": "Este campo es requerido"
+    },
+    "auth": {
+        "login_success": "Inicio de sesión exitoso",
+        "login_error": "Credenciales incorrectas",
+        "register_success": "Registro exitoso. Por favor verifica tu correo.",
+        "register_error": "Error al registrar la cuenta",
+        "email_already_registered": "Este correo ya está registrado. Por favor inicia sesión.",
+        "invalid_credentials": "Credenciales inválidas",
+        "welcome": "¡Bienvenido!",
+        "access_error": "Error de acceso",
+        "provider_soon": "Próximamente"
+    },
+    "generic": {
+        "error_unexpected": "Ha ocurrido un error inesperado",
+        "success": "Operación exitosa"
+    },
+    "register": {
+        "title": "Crear Cuenta",
+        "subtitle": "Optimiza tu negocio con tecnología moderna",
+        "steps": {
+            "account": "Cuenta",
+            "business": "Negocio",
+            "personal": "Personal"
+        },
+        "labels": {
+            "email": "Correo electrónico",
+            "email_placeholder": "Ingresa tu correo electrónico",
+            "password": "Contraseña",
+            "password_placeholder": "••••••••",
+            "confirm_password": "Confirmar Contraseña",
+            "business_name": "Nombre de tu negocio",
+            "business_name_placeholder": "Ej. Mi Tienda",
+            "category": "Categoría",
+            "phone": "Teléfono",
+            "phone_placeholder": "8888-8888",
+            "address": "Dirección",
+            "address_placeholder": "San José",
+            "full_name": "Tu Nombre Completo",
+            "full_name_placeholder": "Nombre completo"
+        },
+        "buttons": {
+            "continue": "Continuar",
+            "back": "Atrás",
+            "finish": "Finalizar Registro",
+            "login_link": "Inicia Sesión",
+            "has_account": "¿Ya tienes cuenta?"
+        },
+        "info": {
+            "almost_done": "¡Casi terminamos!",
+            "admin_account": "Estás creando una cuenta administrativa para {business}."
+        }
+    },
+    "cash_register": {
+        "title": "Control de Caja",
+        "toasts": {
+            "opened_title": "Caja Aperturada",
+            "opened_desc": "Puedes comenzar a vender",
+            "error_title": "Error",
+            "closed_title": "Caja Cerrada",
+            "closed_desc": "Turno finalizado. {diffText}"
+        },
+        "diff": {
+            "none": "Sin diferencia",
+            "surplus": "Sobrante: ₡{amount}",
+            "shortage": "Faltante: ₡{amount}"
+        },
+        "status": {
+            "closed_title": "La caja está cerrada",
+            "closed_desc": "Debes abrir caja para comenzar a realizar ventas.",
+            "current_status": "Estado Actual",
+            "open": "Abierta",
+            "started_at": "Iniciada:",
+            "opening_amount": "Monto Inicial"
+        },
+        "actions": {
+            "open": "Abrir Caja",
+            "close": "Cerrar Caja",
+            "go_to_sales": "Ir a Ventas",
+            "cancel": "Cancelar",
+            "confirm_open": "Abrir Turno",
+            "confirm_close": "Confirmar Cierre"
+        },
+        "modals": {
+            "open_title": "Apertura de Caja",
+            "open_desc": "Ingresa el monto de efectivo inicial en la caja.",
+            "close_title": "Cierre de Caja"
+        },
+        "alerts": {
+            "irreversible_title": "Acción Irreversible",
+            "irreversible_desc": "Al cerrar caja se generará el reporte final del turno."
+        },
+        "summary": {
+            "title": "Resumen del Turno",
+            "opening": "Apertura:",
+            "total_sales": "Ventas Totales:",
+            "cash": "Efectivo:",
+            "card": "Tarjeta:",
+            "transfer": "Transferencia:",
+            "online": "Stripe / Online:",
+            "other": "Otros:",
+            "expected_total": "Total Caja Esperado:"
+        },
+        "labels": {
+            "notes": "Notas / Observaciones"
+        },
+        "placeholders": {
+            "notes": "Diferencias, novedades..."
+        }
+    },
+    "login": {
+        "title": "Bienvenido",
+        "subtitle": "Ingresa a tu cuenta para continuar",
+        "divider": "O continúa con tu correo",
+        "forgot_password": "¿Olvidaste tu contraseña?",
+        "remember_me": "Recordarme",
+        "submit": "Iniciar Sesión",
+        "no_account": "¿No tienes cuenta?",
+        "register_link": "Regístrate"
+    },
+    "landing": {
+        "nav": {
+            "login": "Iniciar Sesión",
+            "start": "Comenzar Gratis"
+        },
+        "hero": {
+            "title_prefix": "Control total para tu",
+            "title_highlight": "Negocio",
+            "subtitle": "Gestiona ventas, inventario y personal en una sola plataforma. Diseñada para crecer contigo.",
+            "cta_primary": "Empieza tu prueba gratis",
+            "cta_secondary": "Ir al Dashboard"
+        },
+        "features": {
+            "pos_title": "Punto de Venta",
+            "pos_desc": "Registra ventas en segundos, acepta múltiples métodos de pago y mantén tu caja cuadrada siempre.",
+            "reports_title": "Reportes en Vivo",
+            "reports_desc": "Toma decisiones basadas en datos reales. Conoce tus productos más vendidos y tus horas pico.",
+            "team_title": "Gestión de Equipo",
+            "team_desc": "Asigna roles, controla permisos y monitorea el rendimiento de tu personal fácilmente."
+        },
+        "footer": "© {year} Lumen Platform. Todos los derechos reservados."
+    },
+    "dashboard": {
+        "stats": {
+            "sales_today": "Ventas Hoy",
+            "transactions": "Transacciones",
+            "pending": "Pendientes",
+            "cash_in_register": "Efectivo en Caja",
+            "vs_yesterday": "{value} vs ayer",
+            "delivered_count": "{count} entregados",
+            "since_opening": "Desde apertura"
+        },
+        "sections": {
+            "recent_transactions": "Transacciones Recientes",
+            "quick_actions": "Acciones Rápidas"
+        },
+        "empty": {
+            "no_transactions": "No hay transacciones aún",
+            "create_first": "Crear Primera Transacción"
+        },
+        "actions": {
+            "new_sale": "Nueva Venta",
+            "open_register": "Abrir Caja",
+            "view_reports": "Ver Reportes",
+            "products": "Productos"
+        },
+        "transactions": {
+            "general_customer": "Cliente general",
+            "status": {
+                "paid": "Pagado",
+                "delivered": "Entregado",
+                "pending": "Pendiente",
+                "cancelled": "Cancelado"
+            }
+        }
+    },
+    "pricing": {
+        "title": "Planes y Precios",
+        "subtitle": "Elige el plan que mejor se adapte a tu negocio",
+        "most_popular": "MÁS POPULAR",
+        "per_month": "/ mes",
+        "includes_trial": "Incluye 14 días de prueba gratis",
+        "plans": {
+            "solo": {
+                "description": "Para emprendedores que inician",
+                "button": "Comenzar Gratis",
+                "features": {
+                    "admin": "1 Usuario Administrador",
+                    "sales": "Punto de Venta Básico",
+                    "inventory": "Control de Inventario",
+                    "reports": "Reportes Básicos",
+                    "support": "Soporte por Email"
+                }
+            },
+            "startup": {
+                "description": "Para negocios en crecimiento",
+                "button": "Comenzar Prueba",
+                "features": {
+                    "users": "3 Usuarios",
+                    "audit": "Auditoría de Caja",
+                    "cash": "Control de Efectivo Avanzado",
+                    "crm": "CRM Básico",
+                    "support": "Soporte Prioritario",
+                    "integration": "Integración Stripe"
+                }
+            },
+            "organization": {
+                "description": "Para grandes operaciones",
+                "button": "Contactar Ventas",
+                "features": {
+                    "users": "Usuarios Ilimitados",
+                    "branches": "Multi-sucursal",
+                    "api": "API Access",
+                    "reports": "Reportes Avanzados",
+                    "manager": "Roles Personalizados",
+                    "sla": "SLA Garantizado"
+                }
+            }
+        }
+    }
+}

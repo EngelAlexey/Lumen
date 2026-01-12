@@ -15,10 +15,8 @@ export const useCashRegister = () => {
             if (session?.user?.id) {
                 return session.user.id
             }
-            console.warn('No session found in getAuthenticatedUserId')
             return null
         } catch (error) {
-            console.error('Error getting session:', error)
             return null
         }
     }
@@ -36,7 +34,6 @@ export const useCashRegister = () => {
                 .single()
 
             if (userError || !userData?.business_id) {
-                console.warn('User without business')
                 return null
             }
 
@@ -52,7 +49,6 @@ export const useCashRegister = () => {
             return data
 
         } catch (error) {
-            console.error('Error fetching cash session:', error)
             return null
         } finally {
             loading.value = false
@@ -208,7 +204,6 @@ export const useCashRegister = () => {
                 if (t.status === 'paid') {
                     summary.totalSales += t.total || 0
 
-                    // Prioritize relation code, fallback to string column
                     const code = t.payment_methods?.code || t.payment_method
 
                     if (code === 'cash') summary.cashSales += t.total || 0

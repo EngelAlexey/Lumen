@@ -270,14 +270,18 @@ onUnmounted(() => {
       <UCard>
         <div class="text-center">
           <p class="text-xs text-gray-500 uppercase tracking-wider">Total Vendido</p>
-          <p class="text-2xl font-bold text-green-600">₡{{ summary.total.toLocaleString() }}</p>
+          <ClientOnly>
+            <p class="text-2xl font-bold text-green-600">₡{{ summary.total.toLocaleString() }}</p>
+          </ClientOnly>
         </div>
       </UCard>
       <UCard v-if="summary.pending > 0">
         <div class="text-center">
           <p class="text-xs text-gray-500 uppercase tracking-wider">Pendientes</p>
           <p class="text-2xl font-bold text-yellow-500">{{ summary.pending }}</p>
-          <p class="text-xs text-yellow-600">₡{{ summary.pendingTotal.toLocaleString() }}</p>
+          <ClientOnly>
+             <p class="text-xs text-yellow-600">₡{{ summary.pendingTotal.toLocaleString() }}</p>
+          </ClientOnly>
         </div>
       </UCard>
       <UCard v-if="summary.delivered > 0">
@@ -321,7 +325,9 @@ onUnmounted(() => {
 
         <template #created_at-cell="{ row }">
           <span class="text-sm">
-            {{ new Date(row.original.created_at).toLocaleTimeString('es-CR', { hour: '2-digit', minute: '2-digit' }) }}
+            <ClientOnly>
+              {{ new Date(row.original.created_at).toLocaleTimeString('es-CR', { hour: '2-digit', minute: '2-digit' }) }}
+            </ClientOnly>
           </span>
         </template>
 
@@ -348,7 +354,9 @@ onUnmounted(() => {
         </template>
 
         <template #total-cell="{ row }">
-          <span class="font-bold">₡{{ row.original.total?.toLocaleString() }}</span>
+          <ClientOnly>
+            <span class="font-bold">₡{{ row.original.total?.toLocaleString() }}</span>
+          </ClientOnly>
         </template>
 
         <template #status-cell="{ row }">
@@ -445,8 +453,16 @@ onUnmounted(() => {
                 class="flex justify-between items-center text-sm"
               >
                 <span class="flex-1">{{ item.product_name }}</span>
-                <span class="w-20 text-center">{{ item.quantity }} x ₡{{ item.unit_price?.toLocaleString() }}</span>
-                <span class="w-24 text-right font-semibold">₡{{ item.subtotal?.toLocaleString() }}</span>
+                <span class="w-20 text-center">
+                    <ClientOnly>
+                        {{ item.quantity }} x ₡{{ item.unit_price?.toLocaleString() }}
+                    </ClientOnly>
+                </span>
+                <span class="w-24 text-right font-semibold">
+                    <ClientOnly>
+                        ₡{{ item.subtotal?.toLocaleString() }}
+                    </ClientOnly>
+                </span>
               </div>
             </div>
             <div class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 flex justify-between font-bold">

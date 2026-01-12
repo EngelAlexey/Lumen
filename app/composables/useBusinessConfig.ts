@@ -172,7 +172,6 @@ export const useBusinessConfig = () => {
     const { getBusinessType } = useAuth()
     const { isAdmin } = useRoles()
 
-    // Use useState to share state across components (Singleton-like behavior)
     const businessType = useState<BusinessType>('business-type', () => 'retail')
     const isLoaded = useState<boolean>('business-config-loaded', () => false)
 
@@ -188,11 +187,9 @@ export const useBusinessConfig = () => {
         const type = await getBusinessType() as BusinessType
         console.log('[useBusinessConfig] Fetched type:', type)
 
-        // Validate that the type is valid, otherwise default to retail
         if (businessConfigs[type]) {
             businessType.value = type
         } else {
-            console.warn(`[useBusinessConfig] Unknown business type: ${type}, defaulting to retail`)
             businessType.value = 'retail'
         }
         isLoaded.value = true

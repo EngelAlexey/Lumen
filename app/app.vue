@@ -33,16 +33,10 @@ watch(user, (currentUser) => {
   }
 })
 
+const { initSessionKeeper } = useAuth()
+
 onMounted(() => {
-  document.addEventListener('visibilitychange', async () => {
-    if (document.visibilityState === 'visible' && !isPublicRoute(route.path)) {      
-      const { data, error } = await client.auth.getSession()
-      
-      if (error || !data.session) {
-        router.push('/login')
-      }
-    }
-  })
+  initSessionKeeper()
 
   client.auth.onAuthStateChange((event) => {
     if (event === 'SIGNED_OUT' && !isPublicRoute(route.path)) {

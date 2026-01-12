@@ -115,5 +115,23 @@ export const useProducts = () => {
         return { success: true, data }
     }
 
-    return { getProducts, createProduct, updateProduct, deleteProduct }
+    const subscribeToStockUpdates = (businessId: string, onUpdate: (payload: any) => void) => {
+        return supabase
+            .channel(`products-live-${businessId}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'products',
+                    filter: `business_id=eq.${businessId}`
+                },
+                (payload) => {
+                    onUpdate(payload)
+                }
+            )
+            .subscribe()
+    }
+
+    return { getProducts, createProduct, updateProduct, deleteProduct, subscribeToStockUpdates }
 }

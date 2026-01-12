@@ -11,27 +11,46 @@
       </div>
       
       <nav class="nav-menu">
-        <NuxtLink 
-          v-for="item in navigation" 
-          :key="item.to" 
-          :to="item.to" 
-          class="nav-item"
-        >
-          <UIcon :name="item.icon" class="nav-icon w-5 h-5" />
-          <span>{{ item.label }}</span>
-        </NuxtLink>
+        <ClientOnly>
+          <NuxtLink 
+            v-for="item in navigation" 
+            :key="item.to" 
+            :to="item.to" 
+            class="nav-item"
+          >
+            <UIcon :name="item.icon" class="nav-icon w-5 h-5" />
+            <span>{{ item.label }}</span>
+          </NuxtLink>
+           <template #fallback>
+             <!-- Skeleton Loader for Nav -->
+            <div v-for="i in 5" :key="i" class="nav-item opacity-50">
+              <div class="w-5 h-5 bg-gray-700 rounded-sm"></div>
+              <div class="h-4 w-24 bg-gray-700 rounded-sm"></div>
+            </div>
+          </template>
+        </ClientOnly>
       </nav>
       
       <div class="sidebar-footer">
-        <div class="user-info">
-          <div class="user-avatar">
-            <UserCircleIcon class="avatar-icon" />
+        <ClientOnly>
+          <div class="user-info">
+            <div class="user-avatar">
+              <UserCircleIcon class="avatar-icon" />
+            </div>
+            <div class="user-details">
+              <p class="user-name">{{ userName }}</p>
+              <p class="user-role">{{ userRole }}</p>
+            </div>
           </div>
-          <div class="user-details">
-            <p class="user-name">{{ userName }}</p>
-            <p class="user-role">{{ userRole }}</p>
-          </div>
-        </div>
+          <template #fallback>
+            <div class="user-info opacity-50">
+               <div class="user-avatar bg-gray-700"></div>
+               <div class="user-details">
+                   <p class="user-name text-xs">Cargando...</p>
+               </div>
+            </div>
+          </template>
+        </ClientOnly>
         <button @click="handleLogout" class="btn-logout">
           <ArrowRightOnRectangleIcon class="logout-icon" />
           Cerrar Sesión
@@ -44,87 +63,100 @@
       <!-- Header -->
       <header class="app-header">
         <div class="header-left">
-          <h2 class="page-title">{{ pageTitle }}</h2>
+          <ClientOnly>
+             <h2 class="page-title">{{ pageTitle }}</h2>
+             <template #fallback>
+                 <div class="h-8 w-32 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+             </template>
+          </ClientOnly>
         </div>
         <div class="header-right">
           <!-- Notifications -->
-          <UPopover :popper="{ placement: 'bottom-end' }">
-            <UButton icon="i-heroicons-bell" color="neutral" variant="ghost" size="lg">
-              <UBadge v-if="unreadCount > 0" color="error" size="xs" :label="String(unreadCount)" class="absolute -top-1 -right-1" />
-            </UButton>
+          <ClientOnly>
+            <UPopover :popper="{ placement: 'bottom-end' }">
+              <UButton icon="i-heroicons-bell" color="neutral" variant="ghost" size="lg">
+                <UBadge v-if="unreadCount > 0" color="error" size="xs" :label="String(unreadCount)" class="absolute -top-1 -right-1" />
+              </UButton>
 
-            <template #panel>
-              <div class="w-96 max-h-[500px] flex flex-col">
-                <!-- Header -->
-                <div class="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-                  <h3 class="font-semibold text-gray-900 dark:text-white">Notificaciones</h3>
-                  <UButton
-                    v-if="unreadCount > 0"
-                    size="xs"
-                    variant="ghost"
-                    color="primary"
-                    @click="markAllAsRead()"
-                  >
-                    Marcar todas como leídas
-                  </UButton>
-                </div>
-
-                <!-- Notifications List -->
-                <div class="flex-1 overflow-y-auto">
-                  <div v-if="notifications.length === 0" class="p-8 text-center text-gray-500">
-                    <UIcon name="i-heroicons-bell-slash" class="w-12 h-12 mx-auto mb-2 opacity-50" />
-                    <p class="text-sm">No hay notificaciones</p>
+              <!-- @vue-ignore -->
+              <template #panel>
+                <div class="w-96 max-h-[500px] flex flex-col">
+                  <!-- Header -->
+                  <div class="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                    <h3 class="font-semibold text-gray-900 dark:text-white">Notificaciones</h3>
+                    <UButton
+                      v-if="unreadCount > 0"
+                      size="xs"
+                      variant="ghost"
+                      color="primary"
+                      @click="markAllAsRead()"
+                    >
+                      Marcar todas como leídas
+                    </UButton>
                   </div>
 
-                  <button
-                    v-for="notif in notifications"
-                    :key="notif.id"
-                    class="w-full text-left p-4 hover:bg-gray-50 dark:hover:bg-gray-800 border-b border-gray-100 dark:border-gray-700 transition-colors"
-                    :class="{ 'bg-primary-50 dark:bg-primary-950/20': !notif.read }"
-                    @click="markAsRead(notif.id)"
-                  >
-                    <div class="flex gap-3">
-                      <div class="flex-shrink-0">
-                        <div class="w-10 h-10 rounded-full flex items-center justify-center" :class="{
-                          'bg-green-100 dark:bg-green-900/30': notif.type === 'transaction_paid',
-                          'bg-blue-100 dark:bg-blue-900/30': notif.type === 'transaction_created',
-                          'bg-gray-100 dark:bg-gray-700': notif.type === 'user_action'
-                        }">
-                          <UIcon
-                            :name="notif.type === 'transaction_paid' ? 'i-heroicons-check-circle' : notif.type === 'transaction_created' ? 'i-heroicons-shopping-cart' : 'i-heroicons-user'"
-                            class="w-5 h-5"
-                            :class="{
-                              'text-green-600': notif.type === 'transaction_paid',
-                              'text-blue-600': notif.type === 'transaction_created',
-                              'text-gray-600': notif.type === 'user_action'
-                            }"
-                          />
+                  <!-- Notifications List -->
+                  <div class="flex-1 overflow-y-auto">
+                    <div v-if="notifications.length === 0" class="p-8 text-center text-gray-500">
+                      <UIcon name="i-heroicons-bell-slash" class="w-12 h-12 mx-auto mb-2 opacity-50" />
+                      <p class="text-sm">No hay notificaciones</p>
+                    </div>
+
+                    <button
+                      v-for="notif in notifications"
+                      :key="notif.id"
+                      class="w-full text-left p-4 hover:bg-gray-50 dark:hover:bg-gray-800 border-b border-gray-100 dark:border-gray-700 transition-colors"
+                      :class="{ 'bg-primary-50 dark:bg-primary-950/20': !notif.read }"
+                      @click="markAsRead(notif.id)"
+                    >
+                      <div class="flex gap-3">
+                        <div class="flex-shrink-0">
+                          <div class="w-10 h-10 rounded-full flex items-center justify-center" :class="{
+                            'bg-green-100 dark:bg-green-900/30': notif.type === 'transaction_paid',
+                            'bg-blue-100 dark:bg-blue-900/30': notif.type === 'transaction_created',
+                            'bg-gray-100 dark:bg-gray-700': notif.type === 'user_action'
+                          }">
+                            <UIcon
+                              :name="notif.type === 'transaction_paid' ? 'i-heroicons-check-circle' : notif.type === 'transaction_created' ? 'i-heroicons-shopping-cart' : 'i-heroicons-user'"
+                              class="w-5 h-5"
+                              :class="{
+                                'text-green-600': notif.type === 'transaction_paid',
+                                'text-blue-600': notif.type === 'transaction_created',
+                                'text-gray-600': notif.type === 'user_action'
+                              }"
+                            />
+                          </div>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                          <p class="font-medium text-sm text-gray-900 dark:text-white">{{ notif.title }}</p>
+                          <p class="text-sm text-gray-600 dark:text-gray-400 mt-0.5">{{ notif.message }}</p>
+                          <p class="text-xs text-gray-400 mt-1">{{ formatNotificationTime(notif.created_at) }}</p>
+                        </div>
+                        <div v-if="!notif.read" class="flex-shrink-0">
+                          <div class="w-2 h-2 rounded-full bg-primary-500"></div>
                         </div>
                       </div>
-                      <div class="flex-1 min-w-0">
-                        <p class="font-medium text-sm text-gray-900 dark:text-white">{{ notif.title }}</p>
-                        <p class="text-sm text-gray-600 dark:text-gray-400 mt-0.5">{{ notif.message }}</p>
-                        <p class="text-xs text-gray-400 mt-1">{{ formatNotificationTime(notif.created_at) }}</p>
-                      </div>
-                      <div v-if="!notif.read" class="flex-shrink-0">
-                        <div class="w-2 h-2 rounded-full bg-primary-500"></div>
-                      </div>
-                    </div>
-                  </button>
+                    </button>
+                  </div>
                 </div>
-              </div>
+              </template>
+            </UPopover>
+            <template #fallback>
+               <UButton icon="i-heroicons-bell" color="neutral" variant="ghost" size="lg" disabled class="opacity-50" />
             </template>
-          </UPopover>
+          </ClientOnly>
 
           <div class="header-info">
-            <span class="date">
-              <CalendarIcon class="header-icon" />
-              {{ currentDate }}
-            </span>
-            <span class="time">
-              <ClockIcon class="header-icon" />
-              {{ currentTime }}
-            </span>
+            <ClientOnly>
+              <span class="date">
+                <CalendarIcon class="header-icon" />
+                {{ currentDate }}
+              </span>
+              <span class="time">
+                <ClockIcon class="header-icon" />
+                {{ currentTime }}
+              </span>
+            </ClientOnly>
           </div>
         </div>
       </header>
