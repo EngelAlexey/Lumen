@@ -102,6 +102,34 @@ export const useBusinessStore = defineStore('business', () => {
                 }
             )
             .subscribe()
+
+        // Subscribe to changes on the businesses table
+        if (business.value?.id) {
+            supabase
+                .channel('business-watchdog')
+                .on(
+                    'postgres_changes',
+                    {
+                        event: 'UPDATE',
+                        schema: 'public',
+                        table: 'businesses',
+                        filter: `id=eq.${business.value.id}`
+                    },
+                    (payload: any) => {
+                        console.log('[BusinessWatchdog] Business update received:', payload)
+                        const newBusiness = payload.new as Business
+
+                        // Update local state
+                        business.value = newBusiness
+                        subscriptionStatus.value = newBusiness.subscription_status
+                        stripeSubscriptionId.value = newBusiness.stripe_subscription_id
+
+                        // Log for debugging
+                        debugMsg.value = `Realtime Update: Status=${subscriptionStatus.value}`
+                    }
+                )
+                .subscribe()
+        }
     }
 
     const resetState = () => {
@@ -114,9 +142,9 @@ export const useBusinessStore = defineStore('business', () => {
 
     // Getters (Computed)
     const isSubscriptionActive = computed(() => {
-        return true // TEMPORARY BYPASS: Allow all access
-        // const status = subscriptionStatus.value
-        // return status === 'active' || status === 'trialing'
+        // return true // TEMPORARY BYPASS: Allow all access
+        const status = subscriptionStatus.value
+        return status === 'active' || status === 'trialing'
     })
 
     return {

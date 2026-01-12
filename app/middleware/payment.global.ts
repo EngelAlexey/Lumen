@@ -24,9 +24,13 @@ export default defineNuxtRouteMiddleware(async (to) => {
     // If store thinks it's initialized but subscription is NOT active, 
     // force a refresh to be sure it's not stale persistence.
     // Also fetch if not initialized.
-    if (!store.initialized || !store.isSubscriptionActive) {
-        console.log('[PaymentMiddleware] Subscription invalid or uninitialized, forcing refresh...')
-        await store.fetchSessionData(true) // forceRefetch = true
+    if (!store.initialized) {
+        await store.fetchSessionData()
+    } else if (!store.isSubscriptionActive) {
+        // Only force refresh if we haven't tried recently (prevent loop)
+        // For now, let's just log and skip the forced blocking refresh to prevent freezing
+        console.warn('[PaymentMiddleware] Subscription inactive, but store initialized. Skipping forced refresh to avoid freeze.')
+        // await store.fetchSessionData(true) 
     }
 
     if (!store.isSubscriptionActive) {

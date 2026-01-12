@@ -202,23 +202,17 @@ async function generatePaymentLink(transaction: any) {
     }
 }
 
-onMounted(async () => {
-  loadTransactions()
-  fetchPaymentMethods()
-  
-  // Ensure profile is loaded
-  if (!profile.value) {
-      console.log('[Transactions] Profile missing, fetching...')
-      await fetchProfile()
-  }
-  // Setup Realtime Watcher
-  watch(() => profile.value, () => {
-    // We subscribe globally to the transactions table.
-    // Supabase RLS policies will ensure the user only receives events for their own business.
+const realtimeConnected = ref(false)
+
+// Realtime setup function
+const setupRealtime = () => {
     if (realtimeChannel) {
         supabase.removeChannel(realtimeChannel)
+        realtimeConnected.value = false
+        realtimeChannel = null
     }
     
+    console.log('[Realtime] Setting up subscription...')
     realtimeChannel = supabase
         .channel('transactions-list-live')
         .on(
@@ -229,10 +223,11 @@ onMounted(async () => {
                 table: 'transactions'
             },
             (payload: any) => {
+                console.log('[Realtime] Event received:', payload)
                 if (payload.eventType === 'UPDATE' && payload.new.status === 'paid' && payload.old.status !== 'paid') {
                     toast.add({
                         title: '¡Pago Recibido!',
-                        description: `La venta #${payload.new.folio || payload.new.id.slice(0,8)} ha sido pagada exitosamente.`,
+                        description: `La venta #${payload.new.transaction_number || payload.new.id.slice(0,8)} ha sido pagada exitosamente.`,
                         icon: 'i-heroicons-check-circle',
                         color: 'success'
                     })
@@ -241,9 +236,30 @@ onMounted(async () => {
                 loadTransactions()
             }
         )
-        .subscribe()
+        .subscribe((status: string) => {
+            console.log('[Realtime] Status:', status)
+            realtimeConnected.value = (status === 'SUBSCRIBED')
+        })
+}
 
-  }, { immediate: true, deep: true })
+onMounted(async () => {
+  loadTransactions()
+  fetchPaymentMethods()
+  
+  if (!profile.value) {
+      console.log('[Transactions] Profile missing, fetching...')
+      await fetchProfile()
+  }
+  
+  // Always try to setup realtime on mount if we're client side
+  setupRealtime()
+  
+  // Watch profile just in case it changes business context (rare but possible)
+  watch(() => profile.value, (newVal, oldVal) => {
+      if (newVal?.id !== oldVal?.id) {
+          setupRealtime()
+      }
+  })
 })
 
 onUnmounted(() => {
@@ -652,18 +668,27 @@ onUnmounted(() => {
       </template>
     </UModal>
     <!-- Stripe Link Viewer Modal -->
-    <UModal v-model="showLinkModal">
-      <div class="p-6">
-        <h3 class="text-lg font-bold mb-4">Link de Pago Activo</h3>
-        
-        <div class="p-3 bg-gray-50 dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 break-all text-sm font-mono text-gray-600 mb-4 select-all">
-            {{ activeStripeLink }}
+    <UModal v-model:open="showLinkModal">
+      <template #body>
+        <div class="p-6">
+          <h3 class="text-lg font-bold mb-4">Link de Pago Activo</h3>
+          
+          <div class="p-3 bg-gray-50 dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 break-all text-sm font-mono text-gray-600 mb-4 select-all">
+              {{ activeStripeLink }}
+          </div>
+          <div class="flex justify-end gap-2">
+              <UButton color="neutral" variant="ghost" @click="showLinkModal = false">Cerrar</UButton>
+              <UButton color="neutral" icon="i-heroicons-clipboard" @click="copyActiveLink">Copiar</UButton>
+          </div>
         </div>
-        <div class="flex justify-end gap-2">
-            <UButton color="neutral" variant="ghost" @click="showLinkModal = false">Cerrar</UButton>
-            <UButton color="neutral" icon="i-heroicons-clipboard" @click="copyActiveLink">Copiar</UButton>
-        </div>
-      </div>
+      </template>
     </UModal>
+  </div>
+  
+  <div class="fixed bottom-4 right-4 z-50">
+      <UBadge :color="realtimeConnected ? 'success' : 'neutral'" variant="soft" class="opacity-75 hover:opacity-100 transition">
+          <UIcon name="i-heroicons-signal" class="w-4 h-4 mr-1" />
+          {{ realtimeConnected ? 'En Vivo' : 'Conectando...' }}
+      </UBadge>
   </div>
 </template>

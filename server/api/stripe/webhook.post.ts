@@ -90,25 +90,34 @@ export default defineEventHandler(async (event) => {
             const supabase = serverSupabaseServiceRole(event) as any
 
             // Update Transaction
+            console.log(`[Webhook] Attempting to update transaction ${transactionId} to 'paid'`)
+
+            // Safe extraction of Payment Intent ID
+            const paymentIntentId = typeof session.payment_intent === 'string'
+                ? session.payment_intent
+                : (session.payment_intent as any)?.id || null
+
             const { data: transaction, error } = await supabase
                 .from('transactions')
                 .update({
                     status: 'paid',
                     payment_method: 'stripe_checkout',
                     paid_at: new Date().toISOString(),
-                    stripe_payment_intent_id: session.payment_intent as string
+                    stripe_payment_intent_id: paymentIntentId
                 })
                 .eq('id', transactionId)
                 .select()
                 .single()
 
             if (error) {
-                console.error('❌ Error actualizando transacción:', error)
+                console.error(`❌ [Webhook] Error updating transaction ${transactionId}:`, error)
+                console.error(`Supabase details: ${JSON.stringify(error)}`)
             } else if (transaction) {
                 console.log(`✅ PAYMENT CHECKOUT: Transacción ${transactionId} marcada como pagada.`)
+                console.log(`[Webhook] Transaction data after update:`, transaction)
 
                 // Create Notification
-                await supabase.from('notifications').insert({
+                const { error: notifError } = await supabase.from('notifications').insert({
                     user_id: transaction.served_by, // Notify the waiter/creator
                     business_id: transaction.business_id,
                     type: 'transaction_paid',
@@ -117,6 +126,12 @@ export default defineEventHandler(async (event) => {
                     data: { transaction_id: transaction.id },
                     read: false
                 })
+
+                if (notifError) {
+                    console.error(`⚠️ [Webhook] Error creating notification for ${transactionId}:`, notifError)
+                }
+            } else {
+                console.error(`⚠️ [Webhook] Transaction ${transactionId} not found or not updated (Result is null)`)
             }
         }
 
@@ -125,11 +140,16 @@ export default defineEventHandler(async (event) => {
         const customerId = subscription.customer as string
 
         const supabase = serverSupabaseServiceRole(event) as any
-        const { data: business } = await supabase
+        const { data: business, error: findError } = await supabase
             .from('businesses')
             .select('owner_id, stripe_subscription_id')
             .eq('stripe_customer_id', customerId)
             .single()
+
+        if (findError) {
+            console.error(`[Webhook] Error finding business for customer ${customerId}:`, findError)
+            return { received: true }
+        }
 
         if (business?.owner_id) {
             const status = subscription.status
@@ -139,15 +159,21 @@ export default defineEventHandler(async (event) => {
                 return { received: true }
             }
 
-            await supabase
+            const { error: updateError } = await supabase
                 .from('businesses')
                 .update({ subscription_status: status })
                 .eq('owner_id', business.owner_id)
 
-            console.log(`🔄 SUBSCRIPTION (${eventType}): Usuario ${business.owner_id} estado actualizado a ${status}`)
+            if (updateError) {
+                console.error(`[Webhook] Error updating subscription status for ${business.owner_id}:`, updateError)
+            } else {
+                console.log(`🔄 SUBSCRIPTION (${eventType}): Usuario ${business.owner_id} estado actualizado a ${status}`)
+            }
         } else {
             console.log(`⚠️ Webhook: No se encontró negocio para customer ${customerId}`)
         }
+    } else {
+        console.log(`[Webhook] Unhandled event type: ${eventType}`)
     }
 
     return { received: true }
