@@ -104,8 +104,8 @@ export default defineEventHandler(async (event) => {
             payment_method_types: ['card'],
             line_items: line_items,
             mode: 'payment',
-            success_url: `${config.public.siteUrl}/transactions/${transactionId}?payment=success`,
-            cancel_url: `${config.public.siteUrl}/transactions/${transactionId}?payment=cancelled`,
+            success_url: `${config.public.siteUrl}/payment/product-success?transaction_id=${transactionId}`,
+            cancel_url: `${config.public.siteUrl}/payment/cancelled?transaction_id=${transactionId}`,
             metadata: {
                 transaction_id: transactionId,
                 business_id: transaction.business_id

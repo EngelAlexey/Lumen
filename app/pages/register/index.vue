@@ -118,13 +118,9 @@ async function handleRegister() {
   }
 }
 
-const businessTypes = [
-  { label: 'Retail (Tienda/Bazar)', value: 'retail' },
-  { label: 'Gastronomía (Restaurante/Bar)', value: 'gastronomy' },
-  { label: 'Servicios (Taller/Estética)', value: 'services' },
-  { label: 'Farmacia (Salud)', value: 'pharmacy' },
-  { label: 'Moda (Ropa/Accesorios)', value: 'fashion' }
-]
+import { BUSINESS_TYPES } from '~/constants/businessTypes'
+
+const businessTypes = BUSINESS_TYPES
 </script>
 
 <template>
@@ -169,8 +165,8 @@ const businessTypes = [
 
       <div class="space-y-4">
         <div v-if="currentStep === 0" class="space-y-4">
-          <UFormField label="Email" name="email">
-            <UInput v-model="state.email" icon="i-heroicons-envelope" placeholder="tu@email.com" />
+          <UFormField label="Email" name="Correo electrónico">
+            <UInput v-model="state.email" icon="i-heroicons-envelope" placeholder="Ingresa tu correo electrónico" />
           </UFormField>
           <UFormField label="Contraseña" name="password">
             <UInput v-model="state.password" type="password" icon="i-heroicons-key" placeholder="••••••••" />
@@ -182,10 +178,10 @@ const businessTypes = [
         </div>
 
         <div v-if="currentStep === 1" class="space-y-4">
-          <UFormField label="Nombre del Negocio" name="businessName">
+          <UFormField label="Nombre de tu negocio" name="businessName">
             <UInput v-model="state.businessName" icon="i-heroicons-building-office-2" placeholder="Mi Tienda" />
           </UFormField>
-          <UFormField label="Categoría" name="businessType">
+          <UFormField label="Selecciona una categoría" name="businessType">
             <USelectMenu 
               v-model="state.businessType" 
               :items="businessTypes"
@@ -193,10 +189,10 @@ const businessTypes = [
             />
           </UFormField>
           <div class="grid grid-cols-2 gap-4">
-            <UFormField label="Teléfono" name="phone">
+            <UFormField label="N°Teléfono" name="phone">
               <UInput v-model="state.phone" icon="i-heroicons-phone" placeholder="8888-8888" />
             </UFormField>
-            <UFormField label="Dirección" name="address">
+            <UFormField label="Ingresa tu dirección" name="address">
               <UInput v-model="state.address" icon="i-heroicons-map-pin" placeholder="San José" />
             </UFormField>
           </div>

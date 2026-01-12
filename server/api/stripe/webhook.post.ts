@@ -36,6 +36,11 @@ export default defineEventHandler(async (event) => {
             const subscriptionId = session.subscription as string
             const plan = session.metadata?.plan
 
+            console.log(`[Webhook] Checkout Session Completed - Mode: subscription`)
+            console.log(`[Webhook] Supabase User ID: ${supabaseUserId}`)
+            console.log(`[Webhook] Customer ID: ${customerId}`)
+            console.log(`[Webhook] Subscription ID: ${subscriptionId}`)
+
             if (!supabaseUserId) {
                 console.log('⚠️ Webhook (Subscription): Sin supabase_user_id en metadata.', session.id)
                 return { received: true }
@@ -44,16 +49,25 @@ export default defineEventHandler(async (event) => {
             const supabase = serverSupabaseServiceRole(event) as any
             const subscription = await stripe.subscriptions.retrieve(subscriptionId)
 
+            console.log(`[Webhook] Subscription Status from Stripe: ${subscription.status}`)
+
             // Update Business
-            await supabase
+            const { data: updateData, error: updateError } = await supabase
                 .from('businesses')
                 .update({
                     stripe_customer_id: customerId,
                     stripe_subscription_id: subscriptionId,
                     subscription_status: subscription.status,
-                    plan_type: plan || 'startup'
+                    subscription_plan: plan || 'startup'
                 })
                 .eq('owner_id', supabaseUserId)
+                .select()
+
+            if (updateError) {
+                console.error(`[Webhook] Error updating business:`, updateError)
+            } else {
+                console.log(`[Webhook] Business updated successfully:`, updateData)
+            }
 
             // Update User - REMOVED: Table users does not have subscription_status
             /*

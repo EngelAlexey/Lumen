@@ -1,29 +1,17 @@
 <script setup lang="ts">
-const { fetchProfile, business } = useAuth()
+const { fetchProfile } = useAuth()
 const router = useRouter()
-const attempts = ref(0)
-const maxAttempts = 30
 
 definePageMeta({
   layout: false
 })
 
 onMounted(async () => {
-  const checkStatus = setInterval(async () => {
-    attempts.value++
-    
+  // Wait briefly for webhook to process, then redirect to dashboard
+  setTimeout(async () => {
     await fetchProfile()
-
-    if (business.value && ['active', 'trialing'].includes(business.value.subscription_status)) {
-      clearInterval(checkStatus)
-      router.push('/dashboard')
-    }
-
-    if (attempts.value >= maxAttempts) {
-      clearInterval(checkStatus)
-      router.push('/dashboard')
-    }
-  }, 2000)
+    router.push('/dashboard')
+  }, 3000) // 3 seconds is enough for the webhook to process
 })
 </script>
 

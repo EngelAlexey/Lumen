@@ -224,6 +224,32 @@ export const useAuth = () => {
         return business.value?.business_type
     }
 
+    const updateBusiness = async (updates: any) => {
+        try {
+            loading.value = true
+            error.value = null
+
+            if (!user.value?.id) throw new Error('No hay usuario')
+            if (!business.value?.id) throw new Error('No hay negocio asociado')
+
+            const { error: updateError } = await client
+                .from('businesses')
+                .update(updates)
+                .eq('id', business.value.id)
+
+            if (updateError) throw updateError
+
+            await fetchProfile()
+
+            return { success: true }
+        } catch (e: any) {
+            error.value = e.message
+            return { success: false, error: e.message }
+        } finally {
+            loading.value = false
+        }
+    }
+
     const updateProfile = async (updates: any) => {
         try {
             loading.value = true
@@ -246,10 +272,10 @@ export const useAuth = () => {
 
             await fetchProfile()
 
-            return true
+            return { success: true }
         } catch (e: any) {
             error.value = e.message
-            throw e
+            return { success: false, error: e.message }
         } finally {
             loading.value = false
         }
@@ -282,6 +308,7 @@ export const useAuth = () => {
         forgotPassword,
         updatePassword,
         updateProfile,
+        updateBusiness,
         ensureBusinessExists,
         getBusinessType
     }

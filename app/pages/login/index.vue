@@ -99,13 +99,13 @@ const providers = [{
             <span class="w-full border-t border-gray-300 dark:border-gray-700" />
           </div>
           <div class="relative flex justify-center text-xs uppercase">
-            <span class="bg-white dark:bg-gray-900 px-2 text-gray-500">O continúa con email</span>
+            <span class="bg-white dark:bg-gray-900 px-2 text-gray-500">O continúa con tu correo</span>
           </div>
         </div>
 
         <UForm :schema="schema" :state="state" class="space-y-4" @submit="onSubmit">
-          <UFormField label="Email" name="email">
-            <UInput v-model="state.email" icon="i-heroicons-envelope" placeholder="tu@email.com" class="w-full" />
+          <UFormField label="Correo electrónico" name="email">
+            <UInput v-model="state.email" icon="i-heroicons-envelope" placeholder="Ingresa tu correo electrónico" class="w-full" />
           </UFormField>
 
           <UFormField label="Contraseña" name="password">
