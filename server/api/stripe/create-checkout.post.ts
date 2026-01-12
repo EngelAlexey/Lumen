@@ -64,7 +64,8 @@ export default defineEventHandler(async (event) => {
                 name: metadata.business_name || 'Mi Negocio',
                 business_type: metadata.business_type || 'retail',
                 phone: metadata.phone || null,
-                address: metadata.address || null
+                address: metadata.address || null,
+                subscription_status: 'trialing'
             })
             .select()
             .single()

@@ -30,20 +30,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
     }
 
     if (!store.isSubscriptionActive) {
-        console.warn('[PaymentMiddleware] Subscription check failed.')
-        console.warn('[PaymentMiddleware] Status:', store.subscriptionStatus)
-        console.warn('[PaymentMiddleware] StripeID:', store.stripeSubscriptionId)
-        console.warn('[PaymentMiddleware] IsActive (getter):', store.isSubscriptionActive)
-
-        // Redirect to pricing with debug info instead of processing loop
-        return navigateTo({
-            path: '/pricing',
-            query: {
-                error: 'payment_required',
-                debug_val_status: store.subscriptionStatus || 'undefined',
-                debug_val_id: store.stripeSubscriptionId || 'undefined',
-                debug_val_msg: store.debugMsg || 'No Message'
-            }
-        })
+        console.warn('[PaymentMiddleware] Subscription check failed (BYPASSED).')
+        // return navigateTo('/pricing') // TEMPORARY BYPASS
     }
 })

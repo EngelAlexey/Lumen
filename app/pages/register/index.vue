@@ -4,7 +4,7 @@ import { BUSINESS_TYPES } from '~/constants/businessTypes'
 import { MESSAGES } from '~/constants/messages'
 
 definePageMeta({
-  layout: false
+  layout: 'auth'
 })
 
 const { register } = useAuth()
@@ -134,7 +134,7 @@ async function handleRegister() {
 </script>
 
 <template>
-  <div class="flex flex-col items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-950 p-4 relative overflow-hidden">
+  <div class="flex-1 flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-950 p-4 relative overflow-hidden py-12">
     <!-- Background Decoration -->
     <div class="absolute inset-0 z-0 overflow-hidden pointer-events-none">
         <div class="absolute top-0 left-1/4 w-96 h-96 bg-primary-500/10 rounded-full blur-3xl"></div>

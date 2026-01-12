@@ -1,6 +1,6 @@
 <script setup lang="ts">
 definePageMeta({
-  layout: false
+  layout: 'auth'
 })
 
 const { t } = useI18n()
@@ -110,8 +110,9 @@ const debugInfo = computed(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50 dark:bg-gray-950 py-20 px-4">
-    <UNotifications></UNotifications>
+  <div class="bg-gray-50 dark:bg-gray-950 flex-1 flex flex-col justify-center py-12 px-4">
+    
+
     <div class="max-w-7xl mx-auto space-y-16">
       
       <!-- Debug Alert -->
@@ -126,11 +127,7 @@ const debugInfo = computed(() => {
       />
 
       <!-- Title Section -->
-      <div class="text-center space-y-4 max-w-3xl mx-auto">
-        <div class="flex items-center justify-center gap-2 mb-4 group cursor-pointer" @click="router.push('/')">
-          <UIcon name="i-heroicons-light-bulb" class="w-8 h-8 text-primary-600 transition-transform group-hover:scale-110"></UIcon>
-          <span class="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">Lumen</span>
-        </div>
+      <div class="text-center space-y-4 max-w-3xl mx-auto pt-10">
         <h2 class="text-4xl md:text-5xl font-extrabold text-gray-900 dark:text-white tracking-tight">
           {{ $t('pricing.title') }}
         </h2>

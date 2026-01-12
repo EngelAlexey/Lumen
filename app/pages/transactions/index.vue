@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Transaction } from '~/types/database.types'
 
-const { getTodayTransactions, getTransactions, payTransaction, updateTransactionStatus, fetchPaymentMethods, loading, paymentMethods } = useTransactions()
+const { getTodayTransactions, getTransactions, payTransaction, updateTransactionStatus, fetchPaymentMethods, createStripePayment, loading, paymentMethods } = useTransactions()
 const toast = useToast()
 
 const transactions = ref<Transaction[]>([])
@@ -183,6 +183,23 @@ const { copy } = useClipboard()
 
 function copyActiveLink() {
     copy(activeStripeLink.value)
+    toast.add({ title: 'Copiado', color: 'success' })
+}
+
+async function generatePaymentLink(transaction: any) {
+    if (!transaction) return
+    
+    // Optimistic UI update or separate loading state could be used here, but global loading is fine for now
+    const result = await createStripePayment(transaction.id)
+    
+    if (result.success && result.url) {
+        toast.add({ title: 'Link Generado', description: 'El link de pago ha sido creado exitosamente.', color: 'success' })
+        // Update local state immediately if possible, or reload
+        // transaction.stripe_payment_url = result.url // Modify local if reactive
+        loadTransactions() // Refresh to ensure backend sync
+    } else {
+        toast.add({ title: 'Error', description: result.error || 'No se pudo generar el link', color: 'error' })
+    }
 }
 
 onMounted(async () => {
@@ -427,6 +444,16 @@ onUnmounted(() => {
                     icon="i-heroicons-link" 
                     size="xs" 
                     @click="openStripeLinkModal(row.original.stripe_payment_url)"
+                />
+            </UTooltip>
+            
+            <UTooltip v-else-if="row.original.status === 'pending'" text="Generar Link de Pago">
+                <UButton 
+                    variant="ghost" 
+                    color="primary" 
+                    icon="i-heroicons-globe-alt" 
+                    size="xs" 
+                    @click="generatePaymentLink(row.original)"
                 />
             </UTooltip>
             

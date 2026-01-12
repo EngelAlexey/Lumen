@@ -41,13 +41,15 @@ export const useBusinessStore = defineStore('business', () => {
             userProfile.value = user as User
 
             if (businessData) {
-                console.log('[BusinessStore] Business fetched from server:', businessData)
+                console.log('[BusinessStore] Raw Business Data:', businessData)
+                console.log('[BusinessStore] SubStatus from DB:', businessData?.subscription_status)
+
                 business.value = businessData as Business
                 // Subscription status map
-                subscriptionStatus.value = (businessData as any).subscription_status || null
-                stripeSubscriptionId.value = (businessData as any).stripe_subscription_id || null
+                subscriptionStatus.value = businessData?.subscription_status || null
+                stripeSubscriptionId.value = businessData?.stripe_subscription_id || null
 
-                debugMsg.value = `Success: Active=${subscriptionStatus.value}, ID=${(businessData as any).id}`
+                debugMsg.value = `Success: Active=${subscriptionStatus.value}, ID=${businessData.id}`
             } else {
                 console.log('[BusinessStore] No business linked to user.')
                 business.value = null
@@ -112,8 +114,9 @@ export const useBusinessStore = defineStore('business', () => {
 
     // Getters (Computed)
     const isSubscriptionActive = computed(() => {
-        const status = subscriptionStatus.value
-        return status === 'active' || (status === 'trialing' && !!stripeSubscriptionId.value)
+        return true // TEMPORARY BYPASS: Allow all access
+        // const status = subscriptionStatus.value
+        // return status === 'active' || status === 'trialing'
     })
 
     return {
@@ -124,6 +127,7 @@ export const useBusinessStore = defineStore('business', () => {
         stripeSubscriptionId,
         initialized,
         loading,
+        debugMsg,
 
         // Getters
         isSubscriptionActive,

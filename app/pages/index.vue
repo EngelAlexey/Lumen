@@ -1,27 +1,13 @@
 <script setup lang="ts">
 definePageMeta({
-  layout: false
+  layout: 'auth'
 })
 </script>
 
 <template>
-  <div class="min-h-screen bg-white dark:bg-gray-950 flex flex-col">
-    <!-- Navbar -->
-    <nav class="border-b border-gray-200 dark:border-gray-800 py-4">
-      <div class="max-w-7xl mx-auto px-4 flex justify-between items-center">
-        <div class="flex items-center gap-2">
-          <UIcon name="i-heroicons-light-bulb" class="w-8 h-8 text-primary-600" />
-          <span class="text-xl font-bold text-gray-900 dark:text-white">Lumen</span>
-        </div>
-        <div class="flex gap-4">
-          <UButton to="/login" variant="ghost" color="neutral">{{ $t('landing.nav.login') }}</UButton>
-          <UButton to="/pricing" color="primary">{{ $t('landing.nav.start') }}</UButton>
-        </div>
-      </div>
-    </nav>
-
+  <div class="flex-1 w-full flex flex-col">
     <!-- Hero -->
-    <main class="flex-1 flex flex-col items-center justify-center text-center px-4 py-20 bg-gradient-to-b from-white to-gray-50 dark:from-gray-950 dark:to-gray-900">
+    <div class="flex-1 flex flex-col items-center justify-center text-center px-4 py-20 bg-gradient-to-b from-white to-gray-50 dark:from-gray-950 dark:to-gray-900">
       <div class="max-w-4xl space-y-8">
         <h1 class="text-5xl md:text-7xl font-extrabold text-gray-900 dark:text-white tracking-tight">
           {{ $t('landing.hero.title_prefix') }} <span class="text-primary-600">{{ $t('landing.hero.title_highlight') }}</span>
@@ -66,7 +52,7 @@ definePageMeta({
           {{ $t('landing.features.team_desc') }}
         </UCard>
       </div>
-    </main>
+    </div>
     
     <!-- Footer -->
     <footer class="border-t border-gray-200 dark:border-gray-800 py-8 text-center text-gray-500 text-sm">

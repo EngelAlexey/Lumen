@@ -53,6 +53,22 @@ export default defineEventHandler(async (event) => {
         if (!error && data) {
             console.log('[SessionAPI] Business Found (ID):', (data as any).id)
             business = data
+        } else {
+            console.warn('[SessionAPI] Linked business not found (Zombie Link). Falling back to Owner ID search...')
+            // Fallback: Try to find business by owner_id if linked one is missing
+            const { data: fallbackData } = await client
+                .from('businesses')
+                .select('*')
+                .eq('owner_id', user.id)
+                .single()
+
+            if (fallbackData) {
+                console.log('[SessionAPI] Business Found (Owner Fallback):', (fallbackData as any).id)
+                business = fallbackData
+
+                // Optional: Self-repair implementation
+                await client.from('users').update({ business_id: (fallbackData as any).id } as any).eq('id', user.id)
+            }
         }
     } else {
         console.log('[SessionAPI] Fetching business via Owner ID...')
@@ -61,7 +77,7 @@ export default defineEventHandler(async (event) => {
             .from('businesses')
             .select('*')
             .eq('owner_id', user.id)
-            .single() // Use single() if 1:1, or maybeSingle()
+            .single()
 
         if (error) {
             console.error('[SessionAPI] Business fetch error (Owner):', error)
@@ -70,7 +86,9 @@ export default defineEventHandler(async (event) => {
         if (!error && data) {
             console.log('[SessionAPI] Business Found (Owner):', (data as any).id)
             business = data
-            // Optional: Self-repair link here?
+
+            // Self-repair: Link it
+            await client.from('users').update({ business_id: (data as any).id } as any).eq('id', user.id)
         }
     }
 

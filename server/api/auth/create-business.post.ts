@@ -1,6 +1,5 @@
 import { serverSupabaseServiceRole } from '#supabase/server'
-import type { Database } from '~/types/database.types'
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { Database } from '../../../app/types/database.types'
 
 export default defineEventHandler(async (event) => {
     const body = await readBody(event)
@@ -13,7 +12,7 @@ export default defineEventHandler(async (event) => {
         })
     }
 
-    const client = serverSupabaseServiceRole(event) as unknown as SupabaseClient<Database>
+    const client = serverSupabaseServiceRole<Database>(event)
 
     // Check if business already exists
     const { data: existingBusiness } = await client
@@ -35,6 +34,7 @@ export default defineEventHandler(async (event) => {
             business_type: businessType || 'retail',
             owner_id: userId,
             subscription_status: 'trialing',
+            subscription_plan: selectedPlan || 'Solo',
             phone: phone || null,
             address: address || null
         })

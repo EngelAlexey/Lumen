@@ -186,8 +186,11 @@
         "most_popular": "MÁS POPULAR",
         "per_month": "/ mes",
         "includes_trial": "Incluye 14 días de prueba gratis",
+        "trial_days": "14 días",
+        "contact_support": "Contactar Soporte",
         "plans": {
             "solo": {
+                "name": "Solo",
                 "description": "Para emprendedores que inician",
                 "button": "Comenzar Gratis",
                 "features": {
@@ -199,6 +202,7 @@
                 }
             },
             "startup": {
+                "name": "Startup",
                 "description": "Para negocios en crecimiento",
                 "button": "Comenzar Prueba",
                 "features": {
@@ -211,6 +215,7 @@
                 }
             },
             "organization": {
+                "name": "Organización",
                 "description": "Para grandes operaciones",
                 "button": "Contactar Ventas",
                 "features": {

@@ -3,7 +3,7 @@ import * as z from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
 
 definePageMeta({
-  layout: false
+  layout: 'auth'
 })
 
 const { login } = useAuth()
@@ -71,7 +71,7 @@ const providers = [{
 </script>
 
 <template>
-  <div class="flex flex-col items-center justify-center min-h-screen bg-neutral-50 dark:bg-neutral-950 p-4">
+  <div class="flex-1 flex flex-col items-center justify-center bg-neutral-50 dark:bg-neutral-950 p-4">
     <UCard class="w-full max-w-sm">
       <template #header>
         <div class="text-center">
