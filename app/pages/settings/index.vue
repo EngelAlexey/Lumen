@@ -194,12 +194,9 @@ const tabs = [
   { id: 'business', label: 'Mi Negocio', icon: 'i-heroicons-building-storefront' },
 ]
 
-const businessTypes = [
-  { label: 'Comercio (Retail)', value: 'retail' },
-  { label: 'Gastronomía (Restaurante/Café)', value: 'gastronomy' },
-  { label: 'Servicios (Taller/Estética)', value: 'services' },
-  { label: 'Distribución (Delivery)', value: 'delivery' }
-]
+import { BUSINESS_TYPES } from '~/constants/businessTypes'
+
+const businessTypes = BUSINESS_TYPES
 
 const profileForm = reactive({
   fullName: '',

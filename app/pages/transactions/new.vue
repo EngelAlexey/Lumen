@@ -353,9 +353,25 @@ async function generateOnlinePayment() {
   }
 }
 
-function copyStripeLink() {
-    navigator.clipboard.writeText(stripeLink.value)
-    toast.add({ title: 'Copiado', description: 'Link copiado al portapapeles', color: 'success' })
+
+const { copy } = useClipboard()
+
+
+
+// Wrapper para forzar actualización (v3)
+async function handleCopyLink() {
+    console.log('User clicked copy link. URL:', stripeLink.value) 
+    await copy(stripeLink.value, 'Link copiado al portapapeles')
+}
+
+
+function selectText(event: MouseEvent) {
+  const target = event.target as HTMLElement
+  const range = document.createRange()
+  range.selectNodeContents(target)
+  const selection = window.getSelection()
+  selection?.removeAllRanges()
+  selection?.addRange(range)
 }
 
 function goToHistory() {
@@ -707,12 +723,32 @@ function goToHistory() {
             <h3 class="text-xl font-bold">Pago Online Generado</h3>
             <p class="text-gray-500 text-sm">Comparte este enlace con el cliente para completar el pago.</p>
             
-            <div class="p-3 bg-gray-50 dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 break-all text-sm font-mono text-gray-600">
+            <div class="p-3 bg-gray-50 dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 break-all text-sm font-mono text-gray-600 mb-4 cursor-text select-all" @click="selectText">
                 {{ stripeLink }}
             </div>
+
+            <!-- Manual select input fallback -->
+             <div class="mb-4">
+                <UInput
+                    :model-value="stripeLink"
+                    readonly
+                    icon="i-heroicons-link"
+                    :ui="{ trailing: 'pointer-events-auto' }"
+                >
+                    <template #trailing>
+                        <UButton
+                            color="neutral"
+                            variant="link"
+                            icon="i-heroicons-clipboard-document"
+                            :padded="false"
+                            @click="handleCopyLink"
+                        />
+                    </template>
+                </UInput>
+             </div>
             
             <div class="flex gap-2 justify-center">
-                 <UButton color="neutral" icon="i-heroicons-clipboard" @click="copyStripeLink">
+                 <UButton color="neutral" icon="i-heroicons-clipboard" @click="handleCopyLink">
                     Copiar Link
                  </UButton>
                  <a :href="`https://wa.me/?text=Hola, aquí tienes tu link de pago: ${encodeURIComponent(stripeLink)}`" target="_blank" class="no-underline">

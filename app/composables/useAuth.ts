@@ -17,7 +17,6 @@ export const useAuth = () => {
     const business = useState<any>('auth_business', () => null)
 
     const fetchProfile = async () => {
-        // Validación estricta para evitar errores 400 en Supabase
         if (!user.value || !user.value.id) {
             profile.value = null
             business.value = null
@@ -43,7 +42,7 @@ export const useAuth = () => {
                     .single()
 
                 if (businessError && businessError.code !== 'PGRST116') {
-                    console.error('Error fetching business:', businessError)
+                    console.error(businessError)
                 }
                 business.value = businessData
             } else {
@@ -51,7 +50,7 @@ export const useAuth = () => {
             }
 
         } catch (e: any) {
-            console.error('Error fetching profile:', e)
+            console.error(e)
         }
     }
 
@@ -78,15 +77,13 @@ export const useAuth = () => {
             loading.value = true
             error.value = null
 
-            // En el flujo Registro -> Stripe, los datos de pago pueden ir nulos inicialmente
             const metadata = {
                 full_name: data.fullName,
                 role: 'owner',
                 business_name: data.businessName,
                 business_type: data.businessType || 'retail',
-                stripe_customer_id: data.stripeCustomerId || null,
-                stripe_subscription_id: data.stripeSubscriptionId || null,
-                subscription_status: data.subscriptionStatus || 'trialing'
+                selected_plan: data.selectedPlan || 'startup',
+                subscription_status: 'trialing'
             }
 
             const { data: authData, error: authError } = await client.auth.signUp({
@@ -94,31 +91,19 @@ export const useAuth = () => {
                 password: data.password,
                 options: {
                     data: metadata,
-                    emailRedirectTo: `${getBaseUrl()}/login`
+                    emailRedirectTo: `${getBaseUrl()}/auth/onboarding`
                 }
             })
 
             if (authError) throw authError
 
-            if (authData.user) {
-                // Si la sesión se creó automáticamente, esperamos a que el trigger
-                // cree el negocio y luego CERRAMOS sesión para forzar el flujo hacia Login
-                if (authData.session) {
-                    await waitForProfile(authData.user.id)
-                    await client.auth.signOut()
-                }
-
-                return {
-                    ...authData,
-                    success: true,
-                    requiresLogin: true
-                }
+            return {
+                ...authData,
+                success: true
             }
 
-            return authData
         } catch (e: any) {
-            console.error('Registration error:', e)
-            error.value = e.message || 'Error durante el registro'
+            error.value = e.message
             throw e
         } finally {
             loading.value = false
@@ -129,19 +114,18 @@ export const useAuth = () => {
         try {
             loading.value = true
             error.value = null
-
             const { error: err } = await client.auth.resend({
                 type: 'signup',
                 email: email,
                 options: {
-                    emailRedirectTo: `${getBaseUrl()}/login`
+                    emailRedirectTo: `${getBaseUrl()}/auth/onboarding`
                 }
             })
 
             if (err) throw err
             return true
         } catch (e: any) {
-            error.value = e.message || 'Error al reenviar correo'
+            error.value = e.message
             throw e
         } finally {
             loading.value = false
@@ -153,9 +137,8 @@ export const useAuth = () => {
             loading.value = true
             error.value = null
 
-            // CORRECCIÓN: Validar que existan datos antes de enviarlos
-            if (!credentials.email) throw new Error('Por favor ingresa tu correo electrónico')
-            if (!credentials.password) throw new Error('Por favor ingresa tu contraseña')
+            if (!credentials.email) throw new Error('Email requerido')
+            if (!credentials.password) throw new Error('Contraseña requerida')
 
             const { data, error: authError } = await client.auth.signInWithPassword({
                 email: credentials.email,
@@ -166,11 +149,10 @@ export const useAuth = () => {
 
             await fetchProfile()
 
-            return data
+            return { success: true, ...data }
         } catch (e: any) {
-            console.error('Login error:', e)
-            error.value = e.message || 'Error al iniciar sesión'
-            throw e
+            error.value = e.message
+            return { success: false, error: e.message }
         } finally {
             loading.value = false
         }
@@ -192,20 +174,26 @@ export const useAuth = () => {
         }
     }
 
+    const ensureBusinessExists = async () => {
+        if (!user.value) return
+
+        if (!business.value) {
+            await fetchProfile()
+        }
+
+        if (!business.value && !loading.value) {
+            await fetchProfile()
+        }
+    }
+
     const forgotPassword = async (email: string) => {
         try {
             loading.value = true
             error.value = null
-
-            const baseUrl = getBaseUrl()
-            const redirectTo = `${baseUrl}/update-password`
-
             const { error: err } = await client.auth.resetPasswordForEmail(email, {
-                redirectTo
+                redirectTo: `${getBaseUrl()}/update-password`
             })
-
             if (err) throw err
-
             return true
         } catch (e: any) {
             error.value = e.message
@@ -219,17 +207,44 @@ export const useAuth = () => {
         try {
             loading.value = true
             error.value = null
-
             const { error: err } = await client.auth.updateUser({
                 password: newPassword
             })
-
             if (err) throw err
-
             return true
         } catch (e: any) {
             error.value = e.message
             throw e
+        } finally {
+            loading.value = false
+        }
+    }
+
+    const getBusinessType = () => {
+        return business.value?.business_type
+    }
+
+    const updateBusiness = async (updates: any) => {
+        try {
+            loading.value = true
+            error.value = null
+
+            if (!user.value?.id) throw new Error('No hay usuario')
+            if (!business.value?.id) throw new Error('No hay negocio asociado')
+
+            const { error: updateError } = await client
+                .from('businesses')
+                .update(updates)
+                .eq('id', business.value.id)
+
+            if (updateError) throw updateError
+
+            await fetchProfile()
+
+            return { success: true }
+        } catch (e: any) {
+            error.value = e.message
+            return { success: false, error: e.message }
         } finally {
             loading.value = false
         }
@@ -240,7 +255,7 @@ export const useAuth = () => {
             loading.value = true
             error.value = null
 
-            if (!user.value?.id) throw new Error('No hay usuario autenticado')
+            if (!user.value?.id) throw new Error('No hay usuario')
 
             if (updates.full_name) {
                 await client.auth.updateUser({
@@ -257,10 +272,10 @@ export const useAuth = () => {
 
             await fetchProfile()
 
-            return true
+            return { success: true }
         } catch (e: any) {
             error.value = e.message
-            throw e
+            return { success: false, error: e.message }
         } finally {
             loading.value = false
         }
@@ -292,6 +307,9 @@ export const useAuth = () => {
         fetchProfile,
         forgotPassword,
         updatePassword,
-        updateProfile
+        updateProfile,
+        updateBusiness,
+        ensureBusinessExists,
+        getBusinessType
     }
 }

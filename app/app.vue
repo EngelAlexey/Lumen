@@ -4,7 +4,6 @@
       <NuxtLayout>
         <NuxtPage :page-key="route => route.fullPath" />
       </NuxtLayout>
-      <UNotifications />
     </div>
   </UApp>
 </template>

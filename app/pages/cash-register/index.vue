@@ -30,7 +30,7 @@ watch(showCloseModal, async (isOpen) => {
     const { success, summary } = await getSessionSummary(currentSession.value.id)
     if (success) {
       sessionSummary.value = summary
-      closingAmount.value = (currentSession.value.opening_cash || 0) + (summary.cashSales || 0)
+      closingAmount.value = (currentSession.value.opening_cash || 0) + (summary?.cashSales || 0)
     }
   }
 })

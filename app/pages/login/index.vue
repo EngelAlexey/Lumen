@@ -28,10 +28,13 @@ const loading = ref(false)
 async function onSubmit(event: FormSubmitEvent<Schema>) {
   loading.value = true
   try {
-    const result = await login(event.data.email, event.data.password)
+    // CORRECCIÓN: Se pasa un objeto como espera useAuth
+    const result = await login({
+        email: event.data.email, 
+        password: event.data.password
+    })
     
     if (result.success) {
-      // Wait for user state to propagate to composable to avoid middleware redirect loop
       const user = useSupabaseUser()
       let attempts = 0
       while (!user.value && attempts < 10) {
@@ -78,7 +81,6 @@ const providers = [{
       </template>
 
       <div class="space-y-4">
-        <!-- Social Providers -->
         <div class="grid grid-cols-2 gap-3">
           <UButton 
             v-for="provider in providers" 
@@ -97,13 +99,13 @@ const providers = [{
             <span class="w-full border-t border-gray-300 dark:border-gray-700" />
           </div>
           <div class="relative flex justify-center text-xs uppercase">
-            <span class="bg-white dark:bg-gray-900 px-2 text-gray-500">O continúa con email</span>
+            <span class="bg-white dark:bg-gray-900 px-2 text-gray-500">O continúa con tu correo</span>
           </div>
         </div>
 
         <UForm :schema="schema" :state="state" class="space-y-4" @submit="onSubmit">
-          <UFormField label="Email" name="email">
-            <UInput v-model="state.email" icon="i-heroicons-envelope" placeholder="tu@email.com" class="w-full" />
+          <UFormField label="Correo electrónico" name="email">
+            <UInput v-model="state.email" icon="i-heroicons-envelope" placeholder="Ingresa tu correo electrónico" class="w-full" />
           </UFormField>
 
           <UFormField label="Contraseña" name="password">

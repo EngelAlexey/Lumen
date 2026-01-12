@@ -164,27 +164,98 @@ function formatDeliveryStatus(status: string | null) {
 
 watch(statusFilter, () => loadTransactions())
 
-onMounted(() => {
+const supabase = useSupabaseClient()
+const { profile, fetchProfile } = useAuth()
+const user = useSupabaseUser()
+let realtimeChannel: any = null
+
+
+const showLinkModal = ref(false)
+const activeStripeLink = ref('')
+
+function openStripeLinkModal(url: string) {
+    activeStripeLink.value = url
+    showLinkModal.value = true
+}
+
+
+const { copy } = useClipboard()
+
+function copyActiveLink() {
+    copy(activeStripeLink.value)
+}
+
+onMounted(async () => {
   loadTransactions()
   fetchPaymentMethods()
+  
+  // Ensure profile is loaded
+  if (!profile.value) {
+      console.log('[Transactions] Profile missing, fetching...')
+      await fetchProfile()
+  }
+  // Setup Realtime Watcher
+  watch(() => profile.value, () => {
+    // We subscribe globally to the transactions table.
+    // Supabase RLS policies will ensure the user only receives events for their own business.
+    if (realtimeChannel) {
+        supabase.removeChannel(realtimeChannel)
+    }
+    
+    realtimeChannel = supabase
+        .channel('transactions-list-live')
+        .on(
+            'postgres_changes',
+            {
+                event: '*', // Listen to INSERT, UPDATE, DELETE
+                schema: 'public',
+                table: 'transactions'
+            },
+            (payload: any) => {
+                if (payload.eventType === 'UPDATE' && payload.new.status === 'paid' && payload.old.status !== 'paid') {
+                    toast.add({
+                        title: '¡Pago Recibido!',
+                        description: `La venta #${payload.new.folio || payload.new.id.slice(0,8)} ha sido pagada exitosamente.`,
+                        icon: 'i-heroicons-check-circle',
+                        color: 'success'
+                    })
+                }
+
+                loadTransactions()
+            }
+        )
+        .subscribe()
+
+  }, { immediate: true, deep: true })
+})
+
+onUnmounted(() => {
+    if (realtimeChannel) supabase.removeChannel(realtimeChannel)
 })
 </script>
 
 <template>
   <div class="space-y-6">
     <!-- Header -->
-    <div class="flex justify-between items-center">
-      <div>
-        <h1 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+    <div class="flex justify-between items-center mb-6">
+      <div class="flex items-center gap-4">
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
           <UIcon name="i-heroicons-clipboard-document-list" class="w-6 h-6 text-primary-500" />
           Historial de Ventas
         </h1>
-        <p class="text-sm text-gray-500">Transacciones del día</p>
       </div>
+
       <div class="flex gap-2">
-        <UButton color="primary" icon="i-heroicons-plus" to="/transactions/new">
-          Nueva Venta
-        </UButton>
+          <UButton 
+              icon="i-heroicons-arrow-path" 
+              variant="ghost" 
+              color="neutral" 
+              :loading="loading"
+              @click="loadTransactions"
+          />
+          <UButton color="primary" icon="i-heroicons-plus" to="/transactions/new">
+            Nueva Venta
+          </UButton>
       </div>
     </div>
 
@@ -338,6 +409,16 @@ onMounted(() => {
                     color="neutral" 
                     icon="i-heroicons-document-text" 
                     size="xs" 
+                />
+            </UTooltip>
+            
+            <UTooltip v-if="row.original.stripe_payment_url && row.original.status === 'pending'" text="Ver Link de Pago">
+                <UButton 
+                    variant="ghost" 
+                    color="primary" 
+                    icon="i-heroicons-link" 
+                    size="xs" 
+                    @click="openStripeLinkModal(row.original.stripe_payment_url)"
                 />
             </UTooltip>
             
@@ -526,6 +607,20 @@ onMounted(() => {
           </div>
         </div>
       </template>
+    </UModal>
+    <!-- Stripe Link Viewer Modal -->
+    <UModal v-model="showLinkModal">
+      <div class="p-6">
+        <h3 class="text-lg font-bold mb-4">Link de Pago Activo</h3>
+        
+        <div class="p-3 bg-gray-50 dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 break-all text-sm font-mono text-gray-600 mb-4 select-all">
+            {{ activeStripeLink }}
+        </div>
+        <div class="flex justify-end gap-2">
+            <UButton color="neutral" variant="ghost" @click="showLinkModal = false">Cerrar</UButton>
+            <UButton color="neutral" icon="i-heroicons-clipboard" @click="copyActiveLink">Copiar</UButton>
+        </div>
+      </div>
     </UModal>
   </div>
 </template>

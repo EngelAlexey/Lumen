@@ -7,7 +7,7 @@
           <UIcon name="i-heroicons-light-bulb" class="logo-icon w-8 h-8" />
           Lumen
         </h1>
-        <p class="tagline">{{ businessConfig.name }}</p>
+        <p class="tagline">{{ config.name }}</p>
       </div>
       
       <nav class="nav-menu">
@@ -47,6 +47,75 @@
           <h2 class="page-title">{{ pageTitle }}</h2>
         </div>
         <div class="header-right">
+          <!-- Notifications -->
+          <UPopover :popper="{ placement: 'bottom-end' }">
+            <UButton icon="i-heroicons-bell" color="neutral" variant="ghost" size="lg">
+              <UBadge v-if="unreadCount > 0" color="error" size="xs" :label="String(unreadCount)" class="absolute -top-1 -right-1" />
+            </UButton>
+
+            <template #panel>
+              <div class="w-96 max-h-[500px] flex flex-col">
+                <!-- Header -->
+                <div class="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                  <h3 class="font-semibold text-gray-900 dark:text-white">Notificaciones</h3>
+                  <UButton
+                    v-if="unreadCount > 0"
+                    size="xs"
+                    variant="ghost"
+                    color="primary"
+                    @click="markAllAsRead()"
+                  >
+                    Marcar todas como leídas
+                  </UButton>
+                </div>
+
+                <!-- Notifications List -->
+                <div class="flex-1 overflow-y-auto">
+                  <div v-if="notifications.length === 0" class="p-8 text-center text-gray-500">
+                    <UIcon name="i-heroicons-bell-slash" class="w-12 h-12 mx-auto mb-2 opacity-50" />
+                    <p class="text-sm">No hay notificaciones</p>
+                  </div>
+
+                  <button
+                    v-for="notif in notifications"
+                    :key="notif.id"
+                    class="w-full text-left p-4 hover:bg-gray-50 dark:hover:bg-gray-800 border-b border-gray-100 dark:border-gray-700 transition-colors"
+                    :class="{ 'bg-primary-50 dark:bg-primary-950/20': !notif.read }"
+                    @click="markAsRead(notif.id)"
+                  >
+                    <div class="flex gap-3">
+                      <div class="flex-shrink-0">
+                        <div class="w-10 h-10 rounded-full flex items-center justify-center" :class="{
+                          'bg-green-100 dark:bg-green-900/30': notif.type === 'transaction_paid',
+                          'bg-blue-100 dark:bg-blue-900/30': notif.type === 'transaction_created',
+                          'bg-gray-100 dark:bg-gray-700': notif.type === 'user_action'
+                        }">
+                          <UIcon
+                            :name="notif.type === 'transaction_paid' ? 'i-heroicons-check-circle' : notif.type === 'transaction_created' ? 'i-heroicons-shopping-cart' : 'i-heroicons-user'"
+                            class="w-5 h-5"
+                            :class="{
+                              'text-green-600': notif.type === 'transaction_paid',
+                              'text-blue-600': notif.type === 'transaction_created',
+                              'text-gray-600': notif.type === 'user_action'
+                            }"
+                          />
+                        </div>
+                      </div>
+                      <div class="flex-1 min-w-0">
+                        <p class="font-medium text-sm text-gray-900 dark:text-white">{{ notif.title }}</p>
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mt-0.5">{{ notif.message }}</p>
+                        <p class="text-xs text-gray-400 mt-1">{{ formatNotificationTime(notif.created_at) }}</p>
+                      </div>
+                      <div v-if="!notif.read" class="flex-shrink-0">
+                        <div class="w-2 h-2 rounded-full bg-primary-500"></div>
+                      </div>
+                    </div>
+                  </button>
+                </div>
+              </div>
+            </template>
+          </UPopover>
+
           <div class="header-info">
             <span class="date">
               <CalendarIcon class="header-icon" />
@@ -80,8 +149,9 @@ const supabase = useSupabaseClient()
 const user = useSupabaseUser()
 const router = useRouter()
 const route = useRoute()
-const { currentRole, isAdmin, fetchCurrentRole, getRoleLabel, isLoading } = useRoles()
-const { navigation, config: businessConfig, labels, loadBusinessType, isLoaded: businessLoaded } = useBusinessConfig()
+const { getRoleLabel, fetchCurrentRole, currentRole, isLoading: isLoadingRole } = useRoles()
+const { navigation, labels, loadBusinessType, businessType, config } = useBusinessConfig()
+const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications()
 
 // User profile data
 interface UserProfile {
@@ -95,7 +165,9 @@ const userInitials = computed(() => {
   if (userProfile.value?.full_name) {
     const names = userProfile.value.full_name.split(' ')
     if (names.length > 1 && names[0] && names[names.length - 1]) {
-      return (names[0][0] + names[names.length - 1][0]).toUpperCase()
+      const firstInitial = names[0]?.[0] || ''
+      const lastInitial = names[names.length - 1]?.[0] || ''
+      return (firstInitial + lastInitial).toUpperCase()
     }
     return names[0]?.substring(0, 2).toUpperCase() || 'US'
   }
@@ -108,15 +180,18 @@ const userName = computed(() => {
 })
 
 const userRole = computed(() => {
-  if (isLoading.value) return 'Cargando...'
-  if (!currentRole.value) return 'Sin Rol'
-  return getRoleLabel(currentRole.value)
+  if (currentRole.value) return getRoleLabel(currentRole.value)
+  if (isLoadingRole.value) return 'Cargando...'
+  return 'Sin Rol'
 })
+
+// Interval cleanup
+let dateTimeInterval: NodeJS.Timeout | null = null
 
 // Setup auth state change listener
 onMounted(() => {
   updateDateTime()
-  setInterval(updateDateTime, 60000) // Update every minute
+  dateTimeInterval = setInterval(updateDateTime, 60000) // Update every minute
   
   // Listen for auth state changes
   supabase.auth.onAuthStateChange(async (event, session) => {
@@ -194,13 +269,36 @@ const updateDateTime = () => {
   })
 }
 
+// Cleanup intervals
+onUnmounted(() => {
+  if (dateTimeInterval) {
+    clearInterval(dateTimeInterval)
+    dateTimeInterval = null
+  }
+})
+
 onMounted(async () => {
   updateDateTime()
-  setInterval(updateDateTime, 60000)
   
   // Load business type for dynamic menu
   await loadBusinessType()
 })
+
+// Format notification time
+const formatNotificationTime = (timestamp: string) => {
+  const now = new Date()
+  const time = new Date(timestamp)
+  const diffMs = now.getTime() - time.getTime()
+  const diffMins = Math.floor(diffMs / 60000)
+  const diffHours = Math.floor(diffMins / 60)
+  const diffDays = Math.floor(diffHours / 24)
+
+  if (diffMins < 1) return 'Ahora'
+  if (diffMins < 60) return `Hace ${diffMins}m`
+  if (diffHours < 24) return `Hace ${diffHours}h`
+  if (diffDays < 7) return `Hace ${diffDays}d`
+  return time.toLocaleDateString('es-CR')
+}
 
 // Logout
 const handleLogout = async () => {
