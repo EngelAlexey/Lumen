@@ -7,7 +7,7 @@ definePageMeta({
   layout: 'auth'
 })
 
-const { register } = useAuth()
+const { register, login } = useAuth()
 const router = useRouter()
 const route = useRoute()
 const toast = useToast()
@@ -70,6 +70,34 @@ async function nextStep() {
     const currentSchema = schema[currentStep.value]
     if (currentSchema) {
       currentSchema.parse(state)
+      
+      // Step 0: Check Email Availability before proceeding
+      if (currentStep.value === 0) {
+          loading.value = true
+          try {
+            const check = await $fetch<{ exists: boolean }>('/api/auth/check-email', {
+                method: 'POST',
+                body: { email: state.email }
+            })
+            
+            if (check.exists) {
+                toast.add({ 
+                    title: 'Correo registrado', 
+                    description: 'Este correo ya tiene una cuenta. Por favor inicia sesión.', 
+                    color: 'warning',
+                    duration: 5000
+                })
+                return // Stop here
+            }
+          } catch (e) {
+            console.error('Email check failed', e)
+            // Proceed if check fails? Or block? better block or warn. 
+            // For now let's assume if it fails we let auth handle it.
+          } finally {
+            loading.value = false
+          }
+      }
+
       currentStep.value++
     }
   } catch (err: any) {
@@ -97,32 +125,50 @@ async function handleRegister() {
   try {
     const finalSchema = schema[2]
     if (finalSchema) finalSchema.parse(state)
+
+    // Register (Trigger creates DB records)
+    // Removed redundant check-email here as it's done in Step 1
     
-    const result = await register({
+    console.log('Starting registration for:', state.email)
+
+    const registerResult = await register({
       email: state.email,
       password: state.password,
       fullName: state.fullName,
-      businessName: state.businessName,
-      businessType: state.businessType,
       phone: state.phone,
       address: state.address,
-      selectedPlan: selectedPlan.value
+      businessName: state.businessName,
+      businessType: state.businessType,
+      selectedPlan: selectedPlan.value || 'solo'
     })
 
-    if (result.success) {
-      toast.add({ 
-        title: '¡Casi listo!', 
-        description: MESSAGES.AUTH.REGISTER_SUCCESS, 
-        color: 'success',
-        duration: 10000
-      })
-      router.push('/login?verified=pending')
+    if (registerResult.success) {
+       // Routing
+       const planName = selectedPlan.value?.toLowerCase() || 'solo'
+
+       if (planName === 'solo') {
+            // Free: Confirm Email
+            toast.add({ 
+                title: 'Confirma tu correo', 
+                description: 'Te hemos enviado un enlace para activar tu cuenta.', 
+                color: 'success', duration: 10000 
+            })
+            router.push('/login?verified=pending')
+       } else {
+            // Paid: Redirect directly to payment processing
+            toast.add({ 
+                title: 'Cuenta Creada', 
+                description: 'Redirigiendo al pago...', 
+                color: 'success' 
+            })
+            router.push(`/payment/processing?plan=${planName}&userId=${registerResult.user?.id}`)
+       }
     } else {
       error.value = MESSAGES.AUTH.REGISTER_ERROR
     }
   } catch (err: any) {
     console.error('Registration Error:', err)
-    if (err.message?.includes('already registered')) {
+    if (err.message?.includes('already registered') || err.message?.includes('User already registered')) {
         error.value = 'Este correo ya está registrado. Por favor inicia sesión.'
     } else {
         error.value = err.message || MESSAGES.GENERIC.ERROR_UNEXPECTED

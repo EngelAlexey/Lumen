@@ -188,6 +188,10 @@
         "includes_trial": "Incluye 14 días de prueba gratis",
         "trial_days": "14 días",
         "contact_support": "Contactar Soporte",
+        "errors": {
+            "payment_title": "Error de Pago",
+            "payment_desc": "No se pudo procesar la solicitud. Intenta de nuevo."
+        },
         "plans": {
             "solo": {
                 "name": "Solo",

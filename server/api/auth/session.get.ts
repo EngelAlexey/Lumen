@@ -1,22 +1,24 @@
-import { serverSupabaseUser, serverSupabaseServiceRole } from '#supabase/server'
+import { serverSupabaseUser, serverSupabaseServiceRole, serverSupabaseClient } from '#supabase/server'
 import type { Database } from '~/types/database.types'
 
 export default defineEventHandler(async (event) => {
-    const user = await serverSupabaseUser(event)
+    // Check user auth securely
+    const client = await serverSupabaseClient<Database>(event)
+    const { data: { user }, error: authError } = await client.auth.getUser()
 
-    if (!user) {
+    if (authError || !user) {
+        console.error('[SessionAPI] Auth error:', authError)
         throw createError({
             statusCode: 401,
             message: 'Unauthorized'
         })
     }
 
-    // Use Service Role to bypass RLS policies that might be blocking access
-    // to 'businesses' table or specific columns.
-    const client = serverSupabaseServiceRole<Database>(event)
+    // Use Service Role for data access (Bypassing RLS)
+    const serviceRole = serverSupabaseServiceRole<Database>(event)
 
     // 1. Fetch User Profile
-    const { data: userProfile, error: userError } = await client
+    const { data: userProfile, error: userError } = await serviceRole
         .from('users')
         .select('*')
         .eq('id', user.id)
@@ -35,13 +37,11 @@ export default defineEventHandler(async (event) => {
     // Explicitly cast or handle the type. 
     // Assuming database.types is generated correctly, 'users' row should have business_id
     const userWithBusiness = userProfile as { business_id: string | null;[key: string]: any }
-    console.log('[SessionAPI] Business ID in Profile:', userWithBusiness.business_id)
     let business = null
 
     // 2. Fetch Business (if linked)
     if (userWithBusiness.business_id) {
-        console.log('[SessionAPI] Fetching business via ID...')
-        const { data, error } = await client
+        const { data, error } = await serviceRole
             .from('businesses')
             .select('*')
             .eq('id', userWithBusiness.business_id)
@@ -56,7 +56,7 @@ export default defineEventHandler(async (event) => {
         } else {
             console.warn('[SessionAPI] Linked business not found (Zombie Link). Falling back to Owner ID search...')
             // Fallback: Try to find business by owner_id if linked one is missing
-            const { data: fallbackData } = await client
+            const { data: fallbackData } = await serviceRole
                 .from('businesses')
                 .select('*')
                 .eq('owner_id', user.id)
@@ -67,13 +67,13 @@ export default defineEventHandler(async (event) => {
                 business = fallbackData
 
                 // Optional: Self-repair implementation
-                await client.from('users').update({ business_id: (fallbackData as any).id } as any).eq('id', user.id)
+                await serviceRole.from('users').update({ business_id: (fallbackData as any).id } as any).eq('id', user.id)
             }
         }
     } else {
         console.log('[SessionAPI] Fetching business via Owner ID...')
         // Fallback: Try to find business by owner_id if not linked yet
-        const { data, error } = await client
+        const { data, error } = await serviceRole
             .from('businesses')
             .select('*')
             .eq('owner_id', user.id)
@@ -88,7 +88,7 @@ export default defineEventHandler(async (event) => {
             business = data
 
             // Self-repair: Link it
-            await client.from('users').update({ business_id: (data as any).id } as any).eq('id', user.id)
+            await serviceRole.from('users').update({ business_id: (data as any).id } as any).eq('id', user.id)
         }
     }
 

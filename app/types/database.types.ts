@@ -209,6 +209,8 @@ export interface Database {
                     business_id: string | null
                     is_active: boolean
                     subscription_status?: string
+                    onvo_customer_id?: string | null
+                    onvo_subscription_id?: string | null
                     created_at: string
                 }
                 Insert: {

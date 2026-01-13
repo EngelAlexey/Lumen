@@ -9,6 +9,7 @@ definePageMeta({
 const { login } = useAuth()
 const toast = useToast()
 const router = useRouter()
+const route = useRoute()
 
 const { t } = useI18n()
 
@@ -43,8 +44,18 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
         attempts++
       }
       
-      toast.add({ title: '¡Bienvenido!', color: 'success' })
-      router.push('/dashboard')
+      // Check if there's a plan parameter (from registration flow)
+      const plan = route.query.plan as string
+      
+      if (plan && plan !== 'solo') {
+        // User needs to complete payment
+        toast.add({ title: '¡Bienvenido!', description: 'Redirigiendo al pago...', color: 'success' })
+        router.push('/payment/processing?plan=' + plan)
+      } else {
+        // Normal login flow
+        toast.add({ title: '¡Bienvenido!', color: 'success' })
+        router.push('/dashboard')
+      }
     } else {
       toast.add({ 
         title: t('auth.access_error'), 

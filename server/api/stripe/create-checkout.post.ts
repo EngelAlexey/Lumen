@@ -55,9 +55,35 @@ export default defineEventHandler(async (event) => {
     if (!business) {
         console.log('[CreateCheckout] Business not found, creating new record for user:', userId)
 
+        // Ensure user exists in public.users to avoid FK constraint error
+        const { data: publicUser } = await supabase
+            .from('users')
+            .select('id')
+            .eq('id', userId)
+            .maybeSingle()
+
+        if (!publicUser) {
+            console.log('[CreateCheckout] User not found in public.users, creating stub...', userId)
+            const { error: userError } = await supabase
+                .from('users')
+                .insert({
+                    id: userId,
+                    email: user.email,
+                    full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Usuario',
+                    role: 'owner',
+                    is_active: true
+                })
+
+            if (userError) {
+                console.error('[CreateCheckout] Failed to create public user stub:', userError)
+                // Proceed anyway, maybe it was a race condition and it exists now? 
+                // If not, the business creation will fail and catch block handles it.
+            }
+        }
+
         const metadata = user.user_metadata || {}
 
-        const { data: newBusiness, error: createError } = await supabase
+        const { data: newBusiness, error: dbError } = await supabase
             .from('businesses')
             .insert({
                 owner_id: userId,
@@ -70,8 +96,8 @@ export default defineEventHandler(async (event) => {
             .select()
             .single()
 
-        if (createError || !newBusiness) {
-            console.error('[CreateCheckout] Failed to create business:', createError)
+        if (dbError || !newBusiness) {
+            console.error('[CreateCheckout] Failed to create business:', dbError)
             throw createError({ statusCode: 500, message: 'Failed to initialize business' })
         }
 

@@ -19,15 +19,28 @@ export const useBusinessStore = defineStore('business', () => {
 
     // Actions
     const fetchSessionData = async (forceRefetch = false) => {
+        console.log('[BusinessStore] fetchSessionData called. Force:', forceRefetch)
+        console.log('[BusinessStore] Current User Ref:', user.value)
+
         // If already initialized and not forced, return early (Cache Hit)
         if (initialized.value && !forceRefetch && userProfile.value && business.value) {
+            console.log('[BusinessStore] Cache hit. Returning.')
             return
         }
 
         // Checking auth user
         if (!user.value?.id) {
-            resetState()
-            return
+            console.warn('[BusinessStore] No user ID in store ref. Attempting to fetch user...')
+            const { data: userData } = await useAsyncData('auth_user_check', () => supabase.auth.getUser())
+
+            if (userData.value?.data?.user) {
+                console.log('[BusinessStore] User recovered via auth.getUser()')
+                // Manually set internal reference if needed, but we rely on fetching session next
+            } else {
+                console.warn('[BusinessStore] Still no user. Resetting state.')
+                resetState()
+                return
+            }
         }
 
         try {
@@ -35,28 +48,28 @@ export const useBusinessStore = defineStore('business', () => {
             debugMsg.value = 'Fetching...'
 
             // Fetch everything from server endpoint (Bypasses RLS)
-            const response = await $fetch<{ user: User, business: Business | null }>('/api/auth/session')
+            const response = await $fetch<{ user: User, business: Business | null }>(`/api/auth/session?t=${Date.now()}`)
             const { user, business: businessData } = response
+
+            console.log('[BusinessStore] Raw User Data from API:', user)
 
             userProfile.value = user as User
 
             if (businessData) {
                 console.log('[BusinessStore] Raw Business Data:', businessData)
-                console.log('[BusinessStore] SubStatus from DB:', businessData?.subscription_status)
-
                 business.value = businessData as Business
-                // Subscription status map
-                subscriptionStatus.value = businessData?.subscription_status || null
-                stripeSubscriptionId.value = businessData?.stripe_subscription_id || null
-
-                debugMsg.value = `Success: Active=${subscriptionStatus.value}, ID=${businessData.id}`
             } else {
                 console.log('[BusinessStore] No business linked to user.')
                 business.value = null
-                subscriptionStatus.value = null
-                stripeSubscriptionId.value = null
-                debugMsg.value = 'Success: Business is NULL'
             }
+
+            // Subscription status map (FROM USER TABLE)
+            subscriptionStatus.value = (userProfile.value as any)?.subscription_status || null
+            stripeSubscriptionId.value = (userProfile.value as any)?.onvo_subscription_id || null // Using same ref name for compatibility
+
+            console.log('[BusinessStore] SubStatus from User:', subscriptionStatus.value)
+
+            debugMsg.value = `Success: Active=${subscriptionStatus.value}, BusinessID=${business.value?.id}`
 
             // 3. Initialize Security Watchdog (Realtime)
             initWatchdog()
@@ -76,7 +89,7 @@ export const useBusinessStore = defineStore('business', () => {
     const initWatchdog = () => {
         if (!user.value?.id) return
 
-        // Subscribe to changes on the users table for this specific user
+        // Subscribe to users table for subscription/status changes
         supabase
             .channel('security-watchdog')
             .on(
@@ -91,6 +104,11 @@ export const useBusinessStore = defineStore('business', () => {
                     console.log('[SecurityWatchdog] User update received:', payload)
                     const newUser = payload.new as User
 
+                    // Update local state
+                    userProfile.value = newUser
+                    subscriptionStatus.value = (newUser as any).subscription_status
+                    stripeSubscriptionId.value = (newUser as any).onvo_subscription_id
+
                     // Check if deactivated
                     // Note: is_active might be null in DB types, treat falsy as inactive if explicit false
                     if (newUser.is_active === false) {
@@ -103,7 +121,7 @@ export const useBusinessStore = defineStore('business', () => {
             )
             .subscribe()
 
-        // Subscribe to changes on the businesses table
+        // Subscribe to changes on the businesses table (Just for business data)
         if (business.value?.id) {
             supabase
                 .channel('business-watchdog')
@@ -118,14 +136,8 @@ export const useBusinessStore = defineStore('business', () => {
                     (payload: any) => {
                         console.log('[BusinessWatchdog] Business update received:', payload)
                         const newBusiness = payload.new as Business
-
-                        // Update local state
                         business.value = newBusiness
-                        subscriptionStatus.value = newBusiness.subscription_status
-                        stripeSubscriptionId.value = newBusiness.stripe_subscription_id
-
-                        // Log for debugging
-                        debugMsg.value = `Realtime Update: Status=${subscriptionStatus.value}`
+                        // Removed subscription updates from here
                     }
                 )
                 .subscribe()
@@ -142,8 +154,11 @@ export const useBusinessStore = defineStore('business', () => {
 
     // Getters (Computed)
     const isSubscriptionActive = computed(() => {
-        // return true // TEMPORARY BYPASS: Allow all access
+        // return true // TEMPORARY BYPASS REMOVED
         const status = subscriptionStatus.value
+        // Assume 'solo' plan is always active if status is 'active' or even null? 
+        // Better rely on status being 'active' or 'trialing'.
+        // If plan is 'solo', it should be 'active'.
         return status === 'active' || status === 'trialing'
     })
 

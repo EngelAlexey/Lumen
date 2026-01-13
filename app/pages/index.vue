@@ -1,6 +1,15 @@
 <script setup lang="ts">
+const user = useSupabaseUser()
+const router = useRouter()
+
 definePageMeta({
   layout: 'auth'
+})
+
+onMounted(() => {
+  if (user.value) {
+    router.push('/dashboard')
+  }
 })
 </script>
 

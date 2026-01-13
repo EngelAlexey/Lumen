@@ -77,13 +77,13 @@ export const useAuth = () => {
             loading.value = true
             error.value = null
 
+            // 1. Metadata for Trigger
             const metadata = {
                 full_name: data.fullName,
-                role: 'owner',
                 business_name: data.businessName,
                 business_type: data.businessType || 'retail',
-                selected_plan: data.selectedPlan || 'startup',
-                subscription_status: 'trialing'
+                selected_plan: data.selectedPlan || 'solo',
+                // Trigger handles defaults for status
             }
 
             const { data: authData, error: authError } = await client.auth.signUp({
@@ -91,34 +91,13 @@ export const useAuth = () => {
                 password: data.password,
                 options: {
                     data: metadata,
-                    emailRedirectTo: `${getBaseUrl()}/auth/onboarding`
+                    emailRedirectTo: `${getBaseUrl()}/auth/onboarding` // Confirm email redirect
                 }
             })
 
             if (authError) throw authError
 
-            // Manual Business Creation via Server Endpoint (Bypasses RLS & Auth Context issues)
-            if (authData.user) {
-                const userId = authData.user.id
-
-                try {
-                    await $fetch('/api/auth/create-business', {
-                        method: 'POST',
-                        body: {
-                            userId,
-                            businessName: data.businessName,
-                            businessType: data.businessType,
-                            phone: data.phone,
-                            address: data.address,
-                            selectedPlan: data.selectedPlan
-                        }
-                    })
-                    console.log('[Auth] Business created successfully via server endpoint')
-                } catch (apiError) {
-                    console.error('[Auth] Failed to create business via API:', apiError)
-                    // Continue flow - self-repair in create-checkout handles redundancy
-                }
-            }
+            // No manual business creation. Database trigger handles it.
 
             return {
                 ...authData,

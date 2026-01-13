@@ -186,8 +186,11 @@
         "most_popular": "MOST POPULAR",
         "per_month": "/ month",
         "includes_trial": "Includes 14-day free trial",
+        "trial_days": "14 days",
+        "contact_support": "Questions? Contact us at",
         "plans": {
             "solo": {
+                "name": "Solo",
                 "description": "For entrepreneurs just starting",
                 "button": "Start for Free",
                 "features": {
@@ -199,6 +202,7 @@
                 }
             },
             "startup": {
+                "name": "Startup",
                 "description": "For growing businesses",
                 "button": "Start Trial",
                 "features": {
@@ -211,6 +215,7 @@
                 }
             },
             "organization": {
+                "name": "Organization",
                 "description": "For large operations",
                 "button": "Contact Sales",
                 "features": {
@@ -222,6 +227,10 @@
                     "sla": "Guaranteed SLA"
                 }
             }
+        },
+        "errors": {
+            "payment_title": "Payment Error",
+            "payment_desc": "Could not start payment process. Please try again."
         }
     }
 }

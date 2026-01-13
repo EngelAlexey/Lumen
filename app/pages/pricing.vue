@@ -69,22 +69,34 @@ async function selectPlan(plan: any) {
 
   // If user is already logged in, go to checkout. If not, go to register.
   const user = useSupabaseUser()
-  if (!user.value) {
+  if (!user.value || !user.value.id) {
     router.push(`/register?plan=${plan.name.toLowerCase()}`)
     return
   }
 
   loadingPlans.value[plan.name] = true
+  console.log('Sending subscription request:', { userId: user.value.id, plan: plan.name, price: plan.price }) // Debug
   try {
-    const { url } = await $fetch('/api/stripe/create-checkout', {
+    const response = await $fetch<{ success: boolean; url?: string }>('/api/payments/create-subscription', {
       method: 'POST',
-      body: { plan: plan.name.toLowerCase() }
+      body: { 
+        userId: user.value.id,
+        plan: plan.name.toLowerCase(),
+        priceId: plan.price
+      }
     })
     
-    if (url) {
-      window.location.href = url
+    if (response.url) {
+      window.location.href = response.url
+    } else {
+       toast.add({
+        title: 'Suscripción Iniciada',
+        description: 'Se ha creado la suscripción. Revisa tu correo.',
+        color: 'primary'
+      })
     }
   } catch (err: any) {
+    console.error('Subscription Error:', err)
     toast.add({
       title: t('pricing.errors.payment_title'),
       description: err.data?.message || t('pricing.errors.payment_desc'),
@@ -96,17 +108,8 @@ async function selectPlan(plan: any) {
 }
 const route = useRoute()
 
-// Debug Alert Logic
-const debugInfo = computed(() => {
-  if (route.query.error === 'payment_required') {
-    return {
-      status: route.query.debug_val_status,
-      id: route.query.debug_val_id,
-      msg: route.query.debug_val_msg
-    }
-  }
-  return null
-})
+const store = useBusinessStore()
+const { userProfile } = storeToRefs(store)
 </script>
 
 <template>
@@ -115,17 +118,6 @@ const debugInfo = computed(() => {
 
     <div class="max-w-7xl mx-auto space-y-16">
       
-      <!-- Debug Alert -->
-      <UAlert
-        v-if="debugInfo"
-        icon="i-heroicons-bug-ant"
-        color="error"
-        variant="subtle"
-        title="Debug Mode: Subscription Error"
-        :description="`Client status: ${debugInfo.status}. Msg: ${debugInfo.msg}. ID: ${debugInfo.id}`"
-        class="max-w-3xl mx-auto mb-8"
-      />
-
       <!-- Title Section -->
       <div class="text-center space-y-4 max-w-3xl mx-auto pt-10">
         <h2 class="text-4xl md:text-5xl font-extrabold text-gray-900 dark:text-white tracking-tight">

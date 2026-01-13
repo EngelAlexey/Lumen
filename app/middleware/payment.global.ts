@@ -7,17 +7,22 @@ export default defineNuxtRouteMiddleware(async (to) => {
         '/register',
         '/pricing',
         '/auth/callback',
-        '/',
+        '/', // Landing page is now public
         '/payment/processing',
         '/auth/onboarding',
-        '/payment/success'
+        '/payment/success',
+        '/payment/test'
     ]
 
+    console.log('[PaymentMiddleware] Checking path:', to.path)
+
     if (publicRoutes.some(path => to.path === path || to.path.startsWith(path + '/'))) {
+        console.log('[PaymentMiddleware] Path is public:', to.path)
         return
     }
 
     if (!user.value) {
+        console.log('[PaymentMiddleware] User not logged in, redirecting to /login')
         return navigateTo('/login')
     }
 
@@ -27,14 +32,15 @@ export default defineNuxtRouteMiddleware(async (to) => {
     if (!store.initialized) {
         await store.fetchSessionData()
     } else if (!store.isSubscriptionActive) {
-        // Only force refresh if we haven't tried recently (prevent loop)
-        // For now, let's just log and skip the forced blocking refresh to prevent freezing
-        console.warn('[PaymentMiddleware] Subscription inactive, but store initialized. Skipping forced refresh to avoid freeze.')
-        // await store.fetchSessionData(true) 
+        // Force refresh if we haven't tried recently (prevent loop)
+        await store.fetchSessionData(true)
     }
 
     if (!store.isSubscriptionActive) {
-        console.warn('[PaymentMiddleware] Subscription check failed (BYPASSED).')
-        // return navigateTo('/pricing') // TEMPORARY BYPASS
+        // Check if user has a selected plan in metadata? 
+        // For now, force pricing/payment selection.
+        if (to.path !== '/pricing') {
+            return navigateTo('/pricing')
+        }
     }
 })

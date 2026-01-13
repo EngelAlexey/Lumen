@@ -319,15 +319,15 @@ export const useTransactions = () => {
         }
     }
 
-    const createStripePayment = async (transactionId: string) => {
+    const createOnvoPayment = async (transactionId: string) => {
         try {
-            const { url } = await $fetch<{ url: string }>('/api/stripe/create-payment', {
+            const { url } = await $fetch<{ url: string }>('/api/payments/create-payment', {
                 method: 'POST',
                 body: { transactionId }
             })
             return { success: true, url }
         } catch (error: any) {
-            console.error('Stripe payment error:', error)
+            console.error('Onvo payment error:', error)
             return { success: false, error: error.message || 'Error generando link de pago' }
         }
     }
@@ -342,6 +342,6 @@ export const useTransactions = () => {
         getTodayTransactions,
         getTransactions,
         cancelTransaction,
-        createStripePayment
+        createOnvoPayment
     }
 }
