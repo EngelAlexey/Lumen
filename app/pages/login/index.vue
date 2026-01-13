@@ -14,8 +14,12 @@ const route = useRoute()
 const { t } = useI18n()
 
 const schema = z.object({
-  email: z.string().email(),
-  password: z.string().min(6)
+  email: z.string()
+    .min(1, { message: t('validation.required_field') })
+    .email({ message: t('validation.email_invalid') }),
+  password: z.string()
+    .min(1, { message: t('validation.required_field') })
+    .min(6, { message: t('validation.password_min_length', { min: 6 }) })
 })
 
 type Schema = z.output<typeof schema>

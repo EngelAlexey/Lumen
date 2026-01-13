@@ -1,10 +1,11 @@
 {
     "validation": {
-        "email_invalid": "Invalid email",
-        "password_min_length": "Password must be at least 8 characters",
+        "email_invalid": "Invalid email address",
+        "password_min_length": "Password must be at least {min} characters",
         "passwords_dont_match": "Passwords do not match",
         "name_too_short": "Name is too short",
-        "required_field": "This field is required"
+        "required_field": "This field is required",
+        "invalid_type": "Invalid data type"
     },
     "auth": {
         "login_success": "Login successful",
@@ -122,7 +123,11 @@
         "remember_me": "Remember me",
         "submit": "Sign In",
         "no_account": "Don't have an account?",
-        "register_link": "Sign up"
+        "register_link": "Sign up",
+        "send_recovery_link": "Send recovery link",
+        "recovery_sent_title": "Email sent",
+        "recovery_sent_desc": "Check your inbox to reset your password.",
+        "back_to_login": "Back to login"
     },
     "landing": {
         "nav": {
@@ -147,6 +152,8 @@
         "footer": "© {year} Lumen Platform. All rights reserved."
     },
     "dashboard": {
+        "welcome_msg": "Hello, {name}",
+        "welcome_subtitle": "Here's what's happening with your business today.",
         "stats": {
             "sales_today": "Sales Today",
             "transactions": "Transactions",

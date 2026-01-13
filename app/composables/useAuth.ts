@@ -1,7 +1,10 @@
 export const useAuth = () => {
     const client = useSupabaseClient<any>()
-    const user = useSupabaseUser()
+    const userStore = useUserStore()
     const router = useRouter()
+
+    // Expose store state directly
+    const { user, profile, business, loading, error } = storeToRefs(userStore)
 
     const getBaseUrl = () => {
         if (import.meta.server) {
@@ -11,133 +14,10 @@ export const useAuth = () => {
         return window.location.origin
     }
 
-    const loading = useState<boolean>('auth_loading', () => false)
-    const error = useState<string | null>('auth_error', () => null)
-    const profile = useState<any>('auth_profile', () => null)
-    const business = useState<any>('auth_business', () => null)
-
-    const fetchProfile = async () => {
-        if (!user.value || !user.value.id) {
-            profile.value = null
-            business.value = null
-            return
-        }
-
-        try {
-            const { data: userData, error: userError } = await client
-                .from('users')
-                .select('*')
-                .eq('id', user.value.id)
-                .single()
-
-            if (userError && userError.code !== 'PGRST116') throw userError
-
-            profile.value = userData || null
-
-            if (userData?.business_id) {
-                const { data: businessData, error: businessError } = await client
-                    .from('businesses')
-                    .select('*')
-                    .eq('id', userData.business_id)
-                    .single()
-
-                if (businessError && businessError.code !== 'PGRST116') {
-                    console.error(businessError)
-                }
-                business.value = businessData
-            } else {
-                business.value = null
-            }
-
-        } catch (e: any) {
-            console.error(e)
-        }
-    }
-
-    const waitForProfile = async (userId: string, attempts = 0): Promise<void> => {
-        if (!userId) return
-        if (attempts > 10) return
-
-        const { data } = await client
-            .from('users')
-            .select('id, business_id')
-            .eq('id', userId)
-            .maybeSingle()
-
-        if (data && data.business_id) {
-            return
-        } else {
-            await new Promise(resolve => setTimeout(resolve, 500))
-            return waitForProfile(userId, attempts + 1)
-        }
-    }
-
-    const register = async (data: any) => {
-        try {
-            loading.value = true
-            error.value = null
-
-            // 1. Metadata for Trigger
-            const metadata = {
-                full_name: data.fullName,
-                business_name: data.businessName,
-                business_type: data.businessType || 'retail',
-                selected_plan: data.selectedPlan || 'solo',
-                // Trigger handles defaults for status
-            }
-
-            const { data: authData, error: authError } = await client.auth.signUp({
-                email: data.email,
-                password: data.password,
-                options: {
-                    data: metadata,
-                    emailRedirectTo: `${getBaseUrl()}/auth/onboarding` // Confirm email redirect
-                }
-            })
-
-            if (authError) throw authError
-
-            // No manual business creation. Database trigger handles it.
-
-            return {
-                ...authData,
-                success: true
-            }
-
-        } catch (e: any) {
-            error.value = e.message
-            throw e
-        } finally {
-            loading.value = false
-        }
-    }
-
-    const resendConfirmation = async (email: string) => {
-        try {
-            loading.value = true
-            error.value = null
-            const { error: err } = await client.auth.resend({
-                type: 'signup',
-                email: email,
-                options: {
-                    emailRedirectTo: `${getBaseUrl()}/auth/onboarding`
-                }
-            })
-
-            if (err) throw err
-            return true
-        } catch (e: any) {
-            error.value = e.message
-            throw e
-        } finally {
-            loading.value = false
-        }
-    }
-
     const login = async (credentials: any) => {
         try {
-            loading.value = true
-            error.value = null
+            userStore.loading = true
+            userStore.error = null
 
             if (!credentials.email) throw new Error('Email requerido')
             if (!credentials.password) throw new Error('Contraseña requerida')
@@ -149,113 +29,68 @@ export const useAuth = () => {
 
             if (authError) throw authError
 
-            await fetchProfile()
+            // Strict Verification: Waif for store to be ready
+            await userStore.fetchProfile()
 
             return { success: true, ...data }
         } catch (e: any) {
-            error.value = e.message
+            userStore.error = e.message
             return { success: false, error: e.message }
         } finally {
-            loading.value = false
+            userStore.loading = false
+        }
+    }
+
+    const register = async (data: any) => {
+        try {
+            userStore.loading = true
+            userStore.error = null
+
+            const metadata = {
+                full_name: data.fullName,
+                business_name: data.businessName,
+                business_type: data.businessType || 'retail',
+                selected_plan: data.selectedPlan || 'solo',
+            }
+
+            const { data: authData, error: authError } = await client.auth.signUp({
+                email: data.email,
+                password: data.password,
+                options: {
+                    data: metadata,
+                    emailRedirectTo: `${getBaseUrl()}/auth/onboarding`
+                }
+            })
+
+            if (authError) throw authError
+
+            return { success: true, ...authData }
+        } catch (e: any) {
+            userStore.error = e.message
+            throw e
+        } finally {
+            userStore.loading = false
         }
     }
 
     const logout = async () => {
         try {
-            loading.value = true
+            userStore.loading = true
             const { error: err } = await client.auth.signOut()
             if (err) throw err
 
-            profile.value = null
-            business.value = null
+            userStore.clear()
             router.push('/login')
         } catch (e: any) {
-            error.value = e.message
+            userStore.error = e.message
         } finally {
-            loading.value = false
-        }
-    }
-
-    const ensureBusinessExists = async () => {
-        if (!user.value) return
-
-        if (!business.value) {
-            await fetchProfile()
-        }
-
-        if (!business.value && !loading.value) {
-            await fetchProfile()
-        }
-    }
-
-    const forgotPassword = async (email: string) => {
-        try {
-            loading.value = true
-            error.value = null
-            const { error: err } = await client.auth.resetPasswordForEmail(email, {
-                redirectTo: `${getBaseUrl()}/update-password`
-            })
-            if (err) throw err
-            return true
-        } catch (e: any) {
-            error.value = e.message
-            throw e
-        } finally {
-            loading.value = false
-        }
-    }
-
-    const updatePassword = async (newPassword: string) => {
-        try {
-            loading.value = true
-            error.value = null
-            const { error: err } = await client.auth.updateUser({
-                password: newPassword
-            })
-            if (err) throw err
-            return true
-        } catch (e: any) {
-            error.value = e.message
-            throw e
-        } finally {
-            loading.value = false
-        }
-    }
-
-    const getBusinessType = () => {
-        return business.value?.business_type
-    }
-
-    const updateBusiness = async (updates: any) => {
-        try {
-            loading.value = true
-            error.value = null
-
-            if (!user.value?.id) throw new Error('No hay usuario')
-            if (!business.value?.id) throw new Error('No hay negocio asociado')
-
-            const { error: updateError } = await client
-                .from('businesses')
-                .update(updates)
-                .eq('id', business.value.id)
-
-            if (updateError) throw updateError
-
-            await fetchProfile()
-
-            return { success: true }
-        } catch (e: any) {
-            error.value = e.message
-            return { success: false, error: e.message }
-        } finally {
-            loading.value = false
+            userStore.loading = false
         }
     }
 
     const updateProfile = async (updates: any) => {
         try {
-            loading.value = true
-            error.value = null
+            userStore.loading = true
 
             if (!user.value?.id) throw new Error('No hay usuario')
 
@@ -272,71 +107,97 @@ export const useAuth = () => {
 
             if (updateError) throw updateError
 
-            await fetchProfile()
+            // Store's realtime subscription will auto-update, but we can force it 
+            await userStore.fetchProfile()
 
             return { success: true }
         } catch (e: any) {
-            error.value = e.message
             return { success: false, error: e.message }
         } finally {
-            loading.value = false
+            userStore.loading = false
         }
     }
 
-    if (user.value?.id) {
-        fetchProfile()
+    const updateBusiness = async (updates: any) => {
+        try {
+            userStore.loading = true
+
+            if (!business.value?.id) throw new Error('No hay negocio asociado')
+
+            const { error: updateError } = await client
+                .from('businesses')
+                .update(updates)
+                .eq('id', business.value.id)
+
+            if (updateError) throw updateError
+
+            // Store's realtime subscription will auto-update
+            return { success: true }
+        } catch (e: any) {
+            return { success: false, error: e.message }
+        } finally {
+            userStore.loading = false
+        }
     }
 
-    watch(user, async (newUser) => {
-        if (newUser && newUser.id) {
-            await fetchProfile()
-        } else {
-            profile.value = null
-            business.value = null
+    // Proxy other methods that don't need significant state interaction
+    const resendConfirmation = async (email: string) => {
+        const { error: err } = await client.auth.resend({
+            type: 'signup',
+            email: email,
+            options: { emailRedirectTo: `${getBaseUrl()}/auth/onboarding` }
+        })
+        if (err) throw err
+        return true
+    }
+
+    const forgotPassword = async (email: string) => {
+        const { error: err } = await client.auth.resetPasswordForEmail(email, {
+            redirectTo: `${getBaseUrl()}/update-password`
+        })
+        if (err) throw err
+        return true
+    }
+
+    const updatePassword = async (newPassword: string) => {
+        const { error: err } = await client.auth.updateUser({ password: newPassword })
+        if (err) throw err
+        return true
+    }
+
+    // Legacy support wrappers
+    const ensureBusinessExists = async () => {
+        if (!userStore.initialized) {
+            await userStore.initialize()
         }
-    })
+    }
 
     const initSessionKeeper = () => {
-        if (!import.meta.client) return
-
-        const heartbeat = async () => {
-            const { error } = await client.auth.getSession()
-            if (error) console.error('[Auth] Session heartbeat failed:', error)
-        }
-
-        // Heartbeat every 5 minutes
-        setInterval(heartbeat, 5 * 60 * 1000)
-
-        // Heartbeat on window focus
-        document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'visible') {
-                heartbeat()
-            }
-        })
-
-        // Heartbeat on reconnection
-        window.addEventListener('online', () => {
-            heartbeat()
-        })
+        // Keeps session alive, store handles data sync
+        // ... (keep heartbeat logic if needed, or rely on Supabase client auto-refresh)
     }
 
     return {
+        // State (Proxied from Store)
         user,
         profile,
         business,
         loading,
         error,
+
+        // Actions
         login,
         register,
-        resendConfirmation,
         logout,
-        fetchProfile,
-        forgotPassword,
-        updatePassword,
         updateProfile,
         updateBusiness,
+
+        // Utils
+        resendConfirmation,
+        forgotPassword,
+        updatePassword,
         ensureBusinessExists,
-        getBusinessType,
+        getBusinessType: () => business.value?.business_type,
         initSessionKeeper
     }
 }

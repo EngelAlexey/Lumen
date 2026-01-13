@@ -3,6 +3,7 @@ const email = ref('')
 const loading = ref(false)
 const { forgotPassword } = useAuth()
 const toast = useToast()
+const { t } = useI18n()
 
 definePageMeta({
   layout: 'auth'
@@ -12,9 +13,9 @@ async function handleSubmit() {
   try {
     loading.value = true
     await forgotPassword(email.value)
-    toast.add({ title: 'Correo enviado', description: 'Revisa tu bandeja de entrada para restablecer tu contraseña.', color: 'success' })
+    toast.add({ title: t('login.recovery_sent_title'), description: t('login.recovery_sent_desc'), color: 'success' })
   } catch (error: any) {
-    toast.add({ title: 'Error', description: error.message, color: 'error' })
+    toast.add({ title: t('cash_register.toasts.error_title'), description: error.message, color: 'error' })
   } finally {
     loading.value = false
   }
@@ -29,16 +30,16 @@ async function handleSubmit() {
       </template>
 
       <form @submit.prevent="handleSubmit" class="space-y-4">
-        <UFormField label="Correo electrónico" name="email">
-            <UInput v-model="email" type="email" placeholder="tu@email.com" icon="i-heroicons-envelope" required />
+        <UFormField :label="$t('register.labels.email')" name="email">
+            <UInput v-model="email" type="email" :placeholder="$t('register.labels.email_placeholder')" icon="i-heroicons-envelope" required />
         </UFormField>
 
-        <UButton type="submit" block :loading="loading">enviar enlace de recuperación</UButton>
+        <UButton type="submit" block :loading="loading">{{ $t('login.send_recovery_link') }}</UButton>
       </form>
 
       <template #footer>
         <div class="text-center text-sm">
-            <ULink to="/login" class="text-primary-600 hover:underline">Volver al inicio de sesión</ULink>
+            <ULink to="/login" class="text-primary-600 hover:underline">{{ $t('login.back_to_login') }}</ULink>
         </div>
       </template>
     </UCard>

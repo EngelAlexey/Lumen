@@ -1,50 +1,31 @@
 export type UserRole = 'owner' | 'manager' | 'cashier' | 'staff'
 
-const currentRole = ref<UserRole | null>(null)
-const isLoading = ref(false)
+
 
 export const useRoles = () => {
-    const supabase = useSupabaseClient()
-    const user = useSupabaseUser()
+    const userStore = useUserStore()
+
+    // Computed role from store
+    const currentRole = computed<UserRole | null>(() => {
+        return (userStore.profile?.role as UserRole) || null
+    })
+
+    const isLoading = computed(() => userStore.loading)
 
     const fetchCurrentRole = async (userId?: string) => {
-        let id = userId || user.value?.id
+        // If specific userId requested and it's not current user, we might need a separate call
+        // But for current user (99% of cases), we just ensure store is ready
 
-        if (!id) {
-            const { data } = await supabase.auth.getUser()
-            if (data.user) {
-                id = data.user.id
-            }
-        }
-
-        if (!id) {
-            console.warn('[useRoles] No user ID available')
+        if (userId && userId !== userStore.user?.id) {
+            console.warn('[useRoles] Fetching role for other users not fully implemented in Singleton, returning null for safety')
             return null
         }
 
-        isLoading.value = true
-        try {
-            const { data, error } = await supabase
-                .from('users')
-                .select('role')
-                .eq('id', id)
-                .single()
-
-            if (error) throw error
-
-            const userData = data as { role: UserRole }
-            if (userData && userData.role) {
-                currentRole.value = userData.role
-                return userData.role
-            }
-
-            return null
-        } catch (error) {
-            console.error('Error fetching user role:', error)
-            return null
-        } finally {
-            isLoading.value = false
+        if (!userStore.initialized) {
+            await userStore.initialize()
         }
+
+        return currentRole.value
     }
 
     const isOwner = computed(() => currentRole.value === 'owner')
@@ -108,8 +89,8 @@ export const useRoles = () => {
     }
 
     return {
-        currentRole: readonly(currentRole),
-        isLoading: readonly(isLoading),
+        currentRole,
+        isLoading,
 
         isOwner,
         isManager,

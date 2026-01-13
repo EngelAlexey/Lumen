@@ -169,30 +169,28 @@ const businessConfigs: Record<BusinessType, BusinessConfig> = {
 }
 
 export const useBusinessConfig = () => {
-    const { getBusinessType } = useAuth()
+    const userStore = useUserStore()
     const { isAdmin } = useRoles()
 
-    const businessType = useState<BusinessType>('business-type', () => 'retail')
-    const isLoaded = useState<boolean>('business-config-loaded', () => false)
+    // Map store state to local state for compatibility
+    const businessType = computed(() => {
+        return (userStore.business?.business_type as BusinessType) || 'retail'
+    })
+
+    // We treat it as loaded if we have a business or if we are idle (not loading)
+    const isLoaded = computed(() => userStore.isready)
 
     const loadBusinessType = async (forceType?: BusinessType) => {
         if (forceType) {
-            console.log('[useBusinessConfig] Forcing type to:', forceType)
-            businessType.value = forceType
-            isLoaded.value = true
+            // This is mostly for debugging or override purposes
+            console.log('[useBusinessConfig] Forcing type is not supported in Singleton mode directly. Update business in DB.')
             return
         }
 
-        console.log('[useBusinessConfig] Loading business type...')
-        const type = await getBusinessType() as BusinessType
-        console.log('[useBusinessConfig] Fetched type:', type)
-
-        if (businessConfigs[type]) {
-            businessType.value = type
-        } else {
-            businessType.value = 'retail'
+        // Ensure store is initialized
+        if (!userStore.initialized) {
+            await userStore.initialize()
         }
-        isLoaded.value = true
     }
 
     const config = computed<BusinessConfig>(() => {

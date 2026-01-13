@@ -9,20 +9,39 @@ import type { CartItem } from './useCart'
 
 export const useTransactions = () => {
     const supabase = useSupabaseClient<any>()
-    const user = useSupabaseUser()
+    const userStore = useUserStore()
 
     const loading = ref(false)
     const paymentMethods = ref<PaymentMethod[]>([])
 
-    const getAuthenticatedUserId = async (): Promise<string | null> => {
-        if (user.value?.id) return user.value.id
+    // Helper to ensure business context is ready
+    const ensureContext = async () => {
+        if (!userStore.isready) {
+            await userStore.initialize()
+        }
 
-        try {
-            const { data: { session } } = await supabase.auth.getSession()
-            return session?.user?.id || null
-        } catch (error) {
-            console.error('Error getting session:', error)
-            return null
+        // Double check: If data is missing but initialized, force a refresh
+        if (!userStore.business?.id) {
+            console.log('[useTransactions] Business missing, forcing refresh...')
+            await userStore.fetchProfile()
+        }
+
+        const userId = userStore.user?.id || userStore.profile?.id
+        const businessId = userStore.business?.id
+
+        if (!businessId || !userId) {
+            console.error('[useTransactions] Context Error:', {
+                hasUser: !!userStore.user,
+                hasProfile: !!userStore.profile,
+                hasBusiness: !!userStore.business,
+                userId,
+                businessId
+            })
+            throw new Error('Usuario sin negocio asignado o sesión inválida')
+        }
+        return {
+            userId,
+            businessId
         }
     }
 
@@ -52,21 +71,10 @@ export const useTransactions = () => {
         deliveryStatus?: 'pending' | 'preparing' | 'ready' | 'in_route' | 'delivered' | 'cancelled'
         paymentMethod?: 'cash' | 'card_manual' | 'stripe_checkout' | 'transfer' | 'other'
     }) => {
-        const userId = await getAuthenticatedUserId()
-        if (!userId) return { success: false, error: 'No autenticado' }
-
         loading.value = true
 
         try {
-            const { data: userData, error: userError } = await supabase
-                .from('users')
-                .select('business_id')
-                .eq('id', userId)
-                .single()
-
-            if (userError || !userData?.business_id) {
-                throw new Error('Usuario sin negocio asignado')
-            }
+            const { userId, businessId } = await ensureContext()
 
             const subtotal = data.items.reduce((sum, item) => sum + (item.product.price * item.quantity), 0)
             const discount = data.items.reduce((sum, item) => sum + (item.discount * item.quantity), 0)
@@ -75,7 +83,7 @@ export const useTransactions = () => {
             const isPaid = transactionStatus === 'paid'
 
             const transactionPayload: TransactionInsert = {
-                business_id: userData.business_id,
+                business_id: businessId,
                 cash_session_id: data.cashSessionId,
                 payment_method_id: isPaid ? data.paymentMethodId || null : null,
                 status: transactionStatus,
@@ -155,7 +163,7 @@ export const useTransactions = () => {
                 const { error: notifError } = await supabase
                     .from('notifications')
                     .insert({
-                        user_id: user.value?.id,
+                        user_id: userStore.user?.id,
                         business_id: transaction.business_id,
                         type: 'transaction_paid',
                         title: '¡Pago Recibido!',
@@ -201,19 +209,10 @@ export const useTransactions = () => {
     }
 
     const getTodayTransactions = async () => {
-        const userId = await getAuthenticatedUserId()
-        if (!userId) return { success: false, error: 'No autenticado', data: [] }
-
         loading.value = true
 
         try {
-            const { data: userData } = await supabase
-                .from('users')
-                .select('business_id')
-                .eq('id', userId)
-                .single()
-
-            if (!userData?.business_id) throw new Error('Sin negocio asignado')
+            const { businessId } = await ensureContext()
 
             const today = new Date()
             today.setHours(0, 0, 0, 0)
@@ -226,7 +225,7 @@ export const useTransactions = () => {
                     *,
                     payment_methods (name, code)
                 `)
-                .eq('business_id', userData.business_id)
+                .eq('business_id', businessId)
                 .gte('created_at', today.toISOString())
                 .lt('created_at', tomorrow.toISOString())
                 .order('created_at', { ascending: false })
@@ -249,19 +248,10 @@ export const useTransactions = () => {
         endDate?: string
         cashSessionId?: string
     }) => {
-        const userId = await getAuthenticatedUserId()
-        if (!userId) return { success: false, error: 'No autenticado', data: [] }
-
         loading.value = true
 
         try {
-            const { data: userData } = await supabase
-                .from('users')
-                .select('business_id')
-                .eq('id', userId)
-                .single()
-
-            if (!userData?.business_id) throw new Error('Sin negocio asignado')
+            const { businessId } = await ensureContext()
 
             let query = supabase
                 .from('transactions')
@@ -270,7 +260,7 @@ export const useTransactions = () => {
                     payment_methods (name, code),
                     transaction_items (id, product_name, quantity, unit_price, subtotal)
                 `)
-                .eq('business_id', userData.business_id)
+                .eq('business_id', businessId)
                 .order('created_at', { ascending: false })
 
             if (filters?.status) {

@@ -5,80 +5,82 @@ export type ProductInsert = Database['public']['Tables']['products']['Insert']
 
 export const useProducts = () => {
     const supabase = useSupabaseClient<any>()
-    const user = useSupabaseUser()
+    const userStore = useUserStore()
 
-    const getAuthenticatedUserId = async (): Promise<string | null> => {
-        if (user.value?.id) return user.value.id
+    // Helper to ensure business context is ready
+    const ensureContext = async () => {
+        if (!userStore.isready) {
+            await userStore.initialize()
+        }
 
-        try {
-            const { data: { session } } = await supabase.auth.getSession()
-            return session?.user?.id || null
-        } catch (error) {
-            console.error('Error getting session:', error)
-            return null
+        // Double check: If data is missing but initialized, force a refresh
+        if (!userStore.business?.id) {
+            console.log('[useProducts] Business missing, forcing refresh...')
+            await userStore.fetchProfile()
+        }
+
+        const userId = userStore.user?.id || userStore.profile?.id
+        const businessId = userStore.business?.id
+
+        if (!businessId || !userId) {
+            console.error('[useProducts] Context Error:', {
+                hasUser: !!userStore.user,
+                hasProfile: !!userStore.profile,
+                hasBusiness: !!userStore.business,
+                userId,
+                businessId
+            })
+            throw new Error('Usuario sin negocio asignado o sesión inválida')
+        }
+        return {
+            userId,
+            businessId
         }
     }
 
     const getProducts = async () => {
-        const userId = await getAuthenticatedUserId()
-        if (!userId) return { success: false, error: 'No autenticado' }
+        try {
+            const { businessId } = await ensureContext()
 
-        const { data: userData, error: userError } = await supabase
-            .from('users')
-            .select('business_id')
-            .eq('id', userId)
-            .single()
+            const { data, error } = await supabase
+                .from('products')
+                .select('*')
+                .eq('business_id', businessId)
+                .eq('is_active', true)
+                .order('name', { ascending: true })
 
-        if (userError || !userData?.business_id) {
-            return { success: false, error: 'Usuario sin negocio asignado' }
-        }
+            if (error) {
+                console.error('Error fetching products:', error)
+                return { success: false, error: error.message }
+            }
 
-        const { data, error } = await supabase
-            .from('products')
-            .select('*')
-            .eq('business_id', userData.business_id)
-            .eq('is_active', true)
-            .order('name', { ascending: true })
-
-        if (error) {
-            console.error('Error fetching products:', error)
+            return { success: true, data: data as Product[] }
+        } catch (error: any) {
             return { success: false, error: error.message }
         }
-
-        return { success: true, data: data as Product[] }
     }
 
     const createProduct = async (product: Omit<ProductInsert, 'business_id'>) => {
-        const userId = await getAuthenticatedUserId()
-        if (!userId) {
-            console.error('CreateProduct: User not authenticated')
-            return { success: false, error: 'No autenticado (Sesión perdida)' }
-        }
+        try {
+            const { businessId } = await ensureContext()
 
-        const { data: userData, error: userError } = await supabase
-            .from('users')
-            .select('business_id')
-            .eq('id', userId)
-            .single()
+            const payload = {
+                ...product,
+                business_id: businessId,
+                is_active: true
+            }
 
-        if (userError || !userData || !userData.business_id) {
-            return { success: false, error: 'No se encontró el ID del negocio' }
-        }
+            const { error } = await supabase.from('products').insert(payload)
 
-        const payload = {
-            ...product,
-            business_id: userData.business_id,
-            is_active: true
-        }
+            if (error) {
+                console.error('Supabase Insert Error:', error)
+                return { success: false, error: error.message }
+            }
 
-        const { error } = await supabase.from('products').insert(payload)
-
-        if (error) {
-            console.error('Supabase Insert Error:', error)
+            return { success: true }
+        } catch (error: any) {
             return { success: false, error: error.message }
         }
-
-        return { success: true }
     }
 
     const deleteProduct = async (id: string) => {
@@ -92,27 +94,28 @@ export const useProducts = () => {
     }
 
     const updateProduct = async (id: string, updates: Partial<ProductInsert>) => {
-        const userId = await getAuthenticatedUserId()
-        if (!userId) {
-            return { success: false, error: 'No autenticado' }
-        }
+        try {
+            await ensureContext() // Just ensure auth
 
-        const { data, error } = await supabase
-            .from('products')
-            .update({
-                ...updates,
-                updated_at: new Date().toISOString()
-            })
-            .eq('id', id)
-            .select()
-            .single()
+            const { data, error } = await supabase
+                .from('products')
+                .update({
+                    ...updates,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', id)
+                .select()
+                .single()
 
-        if (error) {
-            console.error('Supabase Update Error:', error)
+            if (error) {
+                console.error('Supabase Update Error:', error)
+                return { success: false, error: error.message }
+            }
+
+            return { success: true, data }
+        } catch (error: any) {
             return { success: false, error: error.message }
         }
-
-        return { success: true, data }
     }
 
     const subscribeToStockUpdates = (businessId: string, onUpdate: (payload: any) => void) => {

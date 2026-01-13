@@ -1,10 +1,11 @@
 {
     "validation": {
         "email_invalid": "Correo electrónico inválido",
-        "password_min_length": "La contraseña debe tener al menos 8 caracteres",
+        "password_min_length": "La contraseña debe tener al menos {min} caracteres",
         "passwords_dont_match": "Las contraseñas no coinciden",
         "name_too_short": "El nombre es muy corto",
-        "required_field": "Este campo es requerido"
+        "required_field": "Este campo es requerido",
+        "invalid_type": "Tipo de dato inválido"
     },
     "auth": {
         "login_success": "Inicio de sesión exitoso",
@@ -15,7 +16,8 @@
         "invalid_credentials": "Credenciales inválidas",
         "welcome": "¡Bienvenido!",
         "access_error": "Error de acceso",
-        "provider_soon": "Próximamente"
+        "provider_soon": "Próximamente",
+        "logout": "Cerrar Sesión"
     },
     "generic": {
         "error_unexpected": "Ha ocurrido un error inesperado",
@@ -122,7 +124,11 @@
         "remember_me": "Recordarme",
         "submit": "Iniciar Sesión",
         "no_account": "¿No tienes cuenta?",
-        "register_link": "Regístrate"
+        "register_link": "Regístrate",
+        "send_recovery_link": "Enviar enlace de recuperación",
+        "recovery_sent_title": "Correo enviado",
+        "recovery_sent_desc": "Revisa tu bandeja de entrada para restablecer tu contraseña.",
+        "back_to_login": "Volver al inicio de sesión"
     },
     "landing": {
         "nav": {
@@ -147,6 +153,8 @@
         "footer": "© {year} Lumen Platform. Todos los derechos reservados."
     },
     "dashboard": {
+        "welcome_msg": "Hola, {name}",
+        "welcome_subtitle": "Esto es lo que está pasando en tu negocio hoy.",
         "stats": {
             "sales_today": "Ventas Hoy",
             "transactions": "Transacciones",

@@ -1,16 +1,15 @@
 import { serverSupabaseServiceRole, serverSupabaseUser } from '#supabase/server'
-import { Database } from '../../../app/types/database.types'
+import { Database, User } from '../../../app/types/database.types'
 import { useOnvo } from '../../utils/onvo'
 
 export default defineEventHandler(async (event) => {
     const body = await readBody(event)
-    console.log('[CreateSubscription] Request Body:', body) // Debug
+    console.log('[CreateSubscription] Request Body:', body)
     const { plan, priceId, billingCycleAnchor } = body
 
     const authUser = await serverSupabaseUser(event).catch(() => null)
     let userId = authUser?.id
 
-    // Fallback: Check if passed in body (ONLY for immediate registration flow trusted environment) 
     if (!userId && (body as any).userId) {
         console.log('[CreateSubscription] Using body userId (Fallback):', (body as any).userId)
         userId = (body as any).userId
@@ -26,15 +25,13 @@ export default defineEventHandler(async (event) => {
     const config = useRuntimeConfig()
     const client = serverSupabaseServiceRole<Database>(event)
     const onvo = useOnvo()
-
-    // 1. Get User/Business details (Updated to use Users table for subscription info)
     const { data: userResult, error: userError } = await client
         .from('users')
         .select('id, email, full_name, onvo_customer_id, onvo_subscription_id, business_id')
         .eq('id', userId)
         .single()
 
-    const user = userResult as any
+    const user = userResult as User | null
 
     if (userError || !user) {
         throw createError({
@@ -43,17 +40,21 @@ export default defineEventHandler(async (event) => {
         })
     }
 
-    // Check business just for name/context if needed
-    const { data: business } = await client
-        .from('businesses')
-        .select('name')
-        .eq('id', user.business_id)
-        .single()
+    let businessName = null
+    if (user.business_id) {
+        const { data: business } = await client
+            .from('businesses')
+            .select('name')
+            .eq('id', user.business_id)
+            .single()
 
-    const accountName = (business as any)?.name || user.full_name || 'Lumen Customer'
+        const businessData = business as { name: string } | null
+        businessName = businessData?.name
+    }
 
-    // 2. Ensure Onvo Customer Exists
-    let onvoCustomerId = (user as any).onvo_customer_id
+    const accountName = businessName || user.full_name || 'Lumen Customer'
+
+    let onvoCustomerId = user.onvo_customer_id
 
     if (!onvoCustomerId) {
         try {
@@ -64,7 +65,6 @@ export default defineEventHandler(async (event) => {
             })
             onvoCustomerId = customer.id
 
-            // Save to DB (Users Table)
             await (client.from('users') as any)
                 .update({ onvo_customer_id: onvoCustomerId })
                 .eq('id', userId)
@@ -75,9 +75,7 @@ export default defineEventHandler(async (event) => {
         }
     }
 
-    // 3. Create Subscription
     try {
-        // Handle FREE plan (Solo) internally
         if (plan === 'solo') {
             console.log('[CreateSubscription] Activating free plan internally for:', accountName)
 
@@ -91,12 +89,11 @@ export default defineEventHandler(async (event) => {
 
             return {
                 success: true,
-                url: null // Frontend should handle redirect to dashboard
+                url: null
             }
         }
 
         console.log('[CreateSubscription] Creating subscription for customer:', onvoCustomerId)
-        // Use configured price ID for Startup plan
         const startupPriceId = config.onvoPriceStartup as string
 
         let items = []
@@ -106,7 +103,6 @@ export default defineEventHandler(async (event) => {
                 quantity: 1
             })
         } else {
-            // Fallback for legacy or unknown plans
             const amount = plan === 'startup' ? 2900 : 1000
             items.push({
                 unitAmount: amount,
@@ -115,7 +111,6 @@ export default defineEventHandler(async (event) => {
             })
         }
 
-        // Use createCheckoutLink for the initial subscription setup (Hosted Page)
         const checkoutSession = await onvo.createCheckoutLink({
             redirectUrl: `${config.public.siteUrl}/payment/success`,
             cancelUrl: `${config.public.siteUrl}/payment/processing?error=cancelled`,
@@ -128,10 +123,9 @@ export default defineEventHandler(async (event) => {
             }
         });
 
-        // Update DB (Users Table) - We don't have a subscription ID yet until webhook returns
         await (client.from('users') as any)
             .update({
-                subscription_plan: plan // Persist plan intent
+                subscription_plan: plan
             })
             .eq('id', userId)
 

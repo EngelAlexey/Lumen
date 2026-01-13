@@ -12,7 +12,7 @@ export const useBusinessStore = defineStore('business', () => {
     const userProfile = ref<User | null>(null)
     const business = ref<Business | null>(null)
     const subscriptionStatus = ref<string | null>(null)
-    const stripeSubscriptionId = ref<string | null>(null)
+    const onvoSubscriptionId = ref<string | null>(null)
     const initialized = ref(false)
     const loading = ref(false)
     const debugMsg = ref<string>('') // Debugging helper
@@ -64,8 +64,8 @@ export const useBusinessStore = defineStore('business', () => {
             }
 
             // Subscription status map (FROM USER TABLE)
-            subscriptionStatus.value = (userProfile.value as any)?.subscription_status || null
-            stripeSubscriptionId.value = (userProfile.value as any)?.onvo_subscription_id || null // Using same ref name for compatibility
+            subscriptionStatus.value = userProfile.value?.subscription_status || null
+            onvoSubscriptionId.value = userProfile.value?.onvo_subscription_id || null
 
             console.log('[BusinessStore] SubStatus from User:', subscriptionStatus.value)
 
@@ -106,8 +106,8 @@ export const useBusinessStore = defineStore('business', () => {
 
                     // Update local state
                     userProfile.value = newUser
-                    subscriptionStatus.value = (newUser as any).subscription_status
-                    stripeSubscriptionId.value = (newUser as any).onvo_subscription_id
+                    subscriptionStatus.value = newUser.subscription_status || null
+                    onvoSubscriptionId.value = newUser.onvo_subscription_id || null
 
                     // Check if deactivated
                     // Note: is_active might be null in DB types, treat falsy as inactive if explicit false
@@ -148,7 +148,7 @@ export const useBusinessStore = defineStore('business', () => {
         userProfile.value = null
         business.value = null
         subscriptionStatus.value = null
-        stripeSubscriptionId.value = null
+        onvoSubscriptionId.value = null
         initialized.value = false
     }
 
@@ -167,7 +167,7 @@ export const useBusinessStore = defineStore('business', () => {
         userProfile,
         business,
         subscriptionStatus,
-        stripeSubscriptionId,
+        onvoSubscriptionId,
         initialized,
         loading,
         debugMsg,

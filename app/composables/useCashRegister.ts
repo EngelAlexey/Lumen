@@ -2,45 +2,52 @@ import type { CashSession, PaymentMethod } from '~/types/database.types'
 
 export const useCashRegister = () => {
     const supabase = useSupabaseClient<any>()
-    const user = useSupabaseUser()
+    const userStore = useUserStore()
 
     const currentSession = ref<CashSession | null>(null)
     const loading = ref(false)
     const paymentMethods = ref<PaymentMethod[]>([])
-    const getAuthenticatedUserId = async (): Promise<string | null> => {
-        if (user.value?.id) return user.value.id
 
-        try {
-            const { data: { session } } = await supabase.auth.getSession()
-            if (session?.user?.id) {
-                return session.user.id
-            }
-            return null
-        } catch (error) {
-            return null
+    // Helper to ensure business context is ready
+    const ensureContext = async () => {
+        if (!userStore.isready) {
+            await userStore.initialize()
+        }
+
+        // Double check: If data is missing but initialized, force a refresh
+        if (!userStore.business?.id) {
+            console.log('[useCashRegister] Business missing, forcing refresh...')
+            await userStore.fetchProfile()
+        }
+
+        const userId = userStore.user?.id || userStore.profile?.id
+        const businessId = userStore.business?.id
+
+        if (!businessId || !userId) {
+            console.error('[useCashRegister] Context Error:', {
+                hasUser: !!userStore.user,
+                hasProfile: !!userStore.profile,
+                hasBusiness: !!userStore.business,
+                userId,
+                businessId
+            })
+            throw new Error('Usuario sin negocio asignado o sesión inválida')
+        }
+        return {
+            userId,
+            businessId
         }
     }
 
     const fetchCurrentSession = async () => {
-        const userId = await getAuthenticatedUserId()
-        if (!userId) return null
-
         loading.value = true
         try {
-            const { data: userData, error: userError } = await supabase
-                .from('users')
-                .select('business_id')
-                .eq('id', userId)
-                .single()
-
-            if (userError || !userData?.business_id) {
-                return null
-            }
+            const { businessId } = await ensureContext()
 
             const { data, error } = await supabase
                 .from('cash_sessions')
                 .select('*')
-                .eq('business_id', userData.business_id)
+                .eq('business_id', businessId)
                 .eq('status', 'open')
                 .maybeSingle()
 
@@ -56,24 +63,13 @@ export const useCashRegister = () => {
     }
 
     const openSession = async (openingCash: number) => {
-        const userId = await getAuthenticatedUserId()
-        if (!userId) return { success: false, error: 'No autenticado. Por favor recarga la página.' }
-
         try {
-            const { data: userData, error: userError } = await supabase
-                .from('users')
-                .select('business_id')
-                .eq('id', userId)
-                .single()
-
-            if (userError || !userData?.business_id) {
-                return { success: false, error: 'Sin negocio asignado' }
-            }
+            const { userId, businessId } = await ensureContext()
 
             const { data: existingSession } = await supabase
                 .from('cash_sessions')
                 .select('id')
-                .eq('business_id', userData.business_id)
+                .eq('business_id', businessId)
                 .eq('status', 'open')
                 .maybeSingle()
 
@@ -84,7 +80,7 @@ export const useCashRegister = () => {
             const { data, error } = await supabase
                 .from('cash_sessions')
                 .insert({
-                    business_id: userData.business_id,
+                    business_id: businessId,
                     opened_by: userId,
                     opening_cash: openingCash,
                     status: 'open',
@@ -108,12 +104,10 @@ export const useCashRegister = () => {
         if (!currentSession.value?.id) {
             return { success: false, error: 'No hay sesión activa' }
         }
-        const userId = await getAuthenticatedUserId()
-        if (!userId) {
-            return { success: false, error: 'No autenticado. Por favor recarga la página.' }
-        }
 
         try {
+            const { userId } = await ensureContext() // Only need userId for closed_by
+
             const { data: salesTotal } = await supabase
                 .from('transactions')
                 .select('total')

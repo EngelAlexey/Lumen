@@ -14,15 +14,11 @@ export default defineNuxtRouteMiddleware(async (to) => {
         '/payment/test'
     ]
 
-    console.log('[PaymentMiddleware] Checking path:', to.path)
-
     if (publicRoutes.some(path => to.path === path || to.path.startsWith(path + '/'))) {
-        console.log('[PaymentMiddleware] Path is public:', to.path)
         return
     }
 
     if (!user.value) {
-        console.log('[PaymentMiddleware] User not logged in, redirecting to /login')
         return navigateTo('/login')
     }
 

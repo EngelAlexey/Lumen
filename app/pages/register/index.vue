@@ -36,21 +36,32 @@ onMounted(() => {
 
 const schema = [
   z.object({
-    email: z.string().email(),
-    password: z.string().min(8),
-    confirmPassword: z.string().min(8)
+    email: z.string()
+      .min(1, { message: t('validation.required_field') })
+      .email({ message: t('validation.email_invalid') }),
+    password: z.string()
+      .min(1, { message: t('validation.required_field') })
+      .min(8, { message: t('validation.password_min_length', { min: 8 }) }),
+    confirmPassword: z.string()
+      .min(1, { message: t('validation.required_field') })
+      .min(8, { message: t('validation.password_min_length', { min: 8 }) })
   }).refine(data => data.password === data.confirmPassword, {
-    message: "passwords_dont_match", // We'll handle translation in display or validation map
+    message: t('validation.passwords_dont_match'),
     path: ["confirmPassword"]
   }),
   z.object({
-    businessName: z.string().min(2),
-    businessType: z.enum(['retail', 'gastronomy', 'services', 'pharmacy', 'fashion', 'delivery'] as const),
+    businessName: z.string()
+      .min(1, { message: t('validation.required_field') })
+      .min(2, { message: t('validation.name_too_short') }),
+    // Simplify enum validation to avoid Typescript overload issues
+    businessType: z.enum(['retail', 'gastronomy', 'services', 'pharmacy', 'fashion', 'delivery']),
     phone: z.string().optional(),
     address: z.string().optional()
   }),
   z.object({
-    fullName: z.string().min(3)
+    fullName: z.string()
+      .min(1, { message: t('validation.required_field') })
+      .min(3, { message: t('validation.name_too_short') })
   })
 ]
 
