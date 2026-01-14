@@ -1,4 +1,6 @@
 <script setup lang="ts">
+const { getStatusLabel } = useOptions()
+
 defineProps<{
   isActive: boolean
 }>()
@@ -10,6 +12,6 @@ defineProps<{
     variant="solid" 
     size="md"
   >
-    {{ isActive ? 'Activo' : 'Inactivo' }}
+    {{ getStatusLabel(isActive ? 'active' : 'inactive') }}
   </UBadge>
 </template>

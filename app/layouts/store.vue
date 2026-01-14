@@ -3,9 +3,7 @@ const route = useRoute()
 const { currentStore } = useStorefront()
 const cart = useCart()
 
-// Force cart to reactive refresh on mount (fix hydration)
 onMounted(() => {
-    // Trigger reactivity by accessing items
     const _ = cart.items.length
 })
 
@@ -13,7 +11,6 @@ onMounted(() => {
 
 <template>
     <div class="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-950 font-sans">
-        <!-- Store Header -->
         <header class="sticky top-0 z-50 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800">
             <UContainer class="h-16 flex items-center justify-between">
                 <div class="flex items-center gap-2">
@@ -26,7 +23,6 @@ onMounted(() => {
                 </div>
 
                 <div class="flex items-center gap-2">
-                    <!-- Cart Button -->
                     <UButton 
                         icon="i-heroicons-shopping-bag" 
                         color="neutral" 
@@ -47,12 +43,9 @@ onMounted(() => {
             </UContainer>
         </header>
 
-        <!-- Main Content -->
         <main class="flex-grow">
             <slot />
         </main>
-
-        <!-- Store Footer -->
         <footer v-if="currentStore" class="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 py-8 mt-auto">
             <UContainer>
                 <div class="test-center md:text-left grid grid-cols-1 md:grid-cols-2 gap-8">

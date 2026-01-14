@@ -1,4 +1,109 @@
 {
+    "validations": {
+        "missing_data": "Faltan datos requeridos (businessId, customer, items)",
+        "incomplete_customer": "Información del cliente incompleta (nombre y teléfono requeridos)"
+    },
+    "business_types": {
+        "retail": {
+            "label": "Retail (Tienda/Bazar)",
+            "description": "Tiendas, mini super, bazares"
+        },
+        "restaurant": {
+            "label": "Gastronomía (Restaurante/Bar)",
+            "description": "Restaurantes, sodas, cafeterías"
+        },
+        "services": {
+            "label": "Servicios (Taller/Estética)",
+            "description": "Talleres, estéticas, consultorías"
+        },
+        "pharmacy": {
+            "label": "Farmacia (Salud)",
+            "description": "Farmacias y boticas"
+        },
+        "fashion": {
+            "label": "Moda (Ropa/Accesorios)",
+            "description": "Boutiques, zapaterías"
+        },
+        "delivery": {
+            "label": "Distribución (Delivery)",
+            "description": "Logística y entregas"
+        },
+        "online": {
+            "label": "Solo Online",
+            "description": "E-commerce sin tienda física"
+        },
+        "hybrid": {
+            "label": "Híbrido",
+            "description": "Tienda física + online"
+        }
+    },
+    "roles": {
+        "owner": "Propietario",
+        "manager": "Gerente",
+        "cashier": "Cajero",
+        "staff": "Personal",
+        "all": "Todos los roles"
+    },
+    "status": {
+        "active": "Activo",
+        "inactive": "Inactivo",
+        "all": "Todos",
+        "transaction": {
+            "paid": "Pagado",
+            "pending": "Pendiente",
+            "delivered": "Entregado",
+            "cancelled": "Cancelado"
+        },
+        "delivery": {
+            "pending": "Pendiente",
+            "preparing": "Preparando",
+            "ready": "Listo",
+            "in_route": "En Ruta",
+            "delivered": "Entregado",
+            "cancelled": "Cancelado"
+        },
+        "payment_method": {
+            "cash": "Efectivo",
+            "card_manual": "Tarjeta",
+            "transfer": "Transferencia",
+            "stripe_checkout": "Stripe / Online",
+            "other": "Otro"
+        }
+    },
+    "common": {
+        "search": "Buscar..."
+    },
+    "messages": {
+        "validation": {
+            "email_invalid": "Correo electrónico inválido",
+            "password_min_length": "La contraseña debe tener al menos 8 caracteres",
+            "passwords_dont_match": "Las contraseñas no coinciden",
+            "name_too_short": "El nombre es muy corto",
+            "required_field": "Este campo es requerido"
+        },
+        "auth": {
+            "login_success": "Inicio de sesión exitoso",
+            "login_error": "Credenciales incorrectas",
+            "register_success": "Registro exitoso. Por favor verifica tu correo.",
+            "register_error": "Error al registrar la cuenta",
+            "invalid_session": "Usuario sin negocio asignado o sesión inválida"
+        },
+        "generic": {
+            "error_unexpected": "Ha ocurrido un error inesperado",
+            "success": "Operación exitosa"
+        },
+        "transactions": {
+            "require_cash_session": "Este negocio requiere una sesión de caja abierta para ventas presenciales",
+            "payment_received": "¡Pago Recibido!",
+            "sale_charged": "Venta #{number} ha sido cobrada exitosamente.",
+            "payment_link_error": "Error generando link de pago"
+        },
+        "users": {
+            "create_error": "Error al crear usuario",
+            "update_error": "Error al actualizar usuario",
+            "delete_error": "Error al eliminar usuario"
+        }
+    },
     "validation": {
         "email_invalid": "Correo electrónico inválido",
         "password_min_length": "La contraseña debe tener al menos 8 caracteres",

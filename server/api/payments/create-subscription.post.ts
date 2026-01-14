@@ -1,57 +1,59 @@
 import { serverSupabaseServiceRole, serverSupabaseUser } from '#supabase/server'
-import { Database, User } from '../../../app/types/database.types'
+import type { Database } from '../../../app/types/database.types'
 import { useOnvo } from '../../utils/onvo'
+import { createSubscriptionSchema } from '../../validations/schemas'
+import { validateBody, createSuccessResponse, createErrorResponse } from '../../utils/validation'
 
 export default defineEventHandler(async (event) => {
-    const body = await readBody(event)
-    const { plan, priceId, billingCycleAnchor } = body
+    // Validate request body
+    const validatedData = await validateBody(event, createSubscriptionSchema)
+    const { plan, userId: bodyUserId } = validatedData
 
+    // Get authenticated user
     const authUser = await serverSupabaseUser(event).catch(() => null)
-    let userId = authUser?.id
-
-    if (!userId && (body as any).userId) {
-        userId = (body as any).userId
-    }
+    const userId = authUser?.id || bodyUserId
 
     if (!userId) {
-        throw createError({
-            statusCode: 401,
-            message: 'Unauthorized: User ID is required'
-        })
+        throw createErrorResponse('ID de usuario requerido', 401)
     }
 
     const config = useRuntimeConfig()
     const client = serverSupabaseServiceRole<Database>(event)
     const onvo = useOnvo()
-    const { data: userResult, error: userError } = await client
+
+    // Fetch user profile
+    const { data: user, error: userError } = await client
         .from('users')
         .select('id, email, full_name, onvo_customer_id, onvo_subscription_id, business_id')
         .eq('id', userId)
-        .single()
-
-    const user = userResult as User | null
+        .single<{
+            id: string
+            email: string | null
+            full_name: string | null
+            onvo_customer_id: string | null
+            onvo_subscription_id: string | null
+            business_id: string | null
+        }>()
 
     if (userError || !user) {
-        throw createError({
-            statusCode: 404,
-            message: 'User profile not found'
-        })
+        throw createErrorResponse('Perfil de usuario no encontrado', 404)
     }
 
-    let businessName = null
+    // Get business name for customer account
+    let businessName: string | null = null
     if (user.business_id) {
         const { data: business } = await client
             .from('businesses')
             .select('name')
             .eq('id', user.business_id)
-            .single()
+            .single<{ name: string }>()
 
-        const businessData = business as { name: string } | null
-        businessName = businessData?.name
+        businessName = business?.name || null
     }
 
     const accountName = businessName || user.full_name || 'Lumen Customer'
 
+    // Ensure Onvo customer exists
     let onvoCustomerId = user.onvo_customer_id
 
     if (!onvoCustomerId) {
@@ -62,36 +64,39 @@ export default defineEventHandler(async (event) => {
             })
             onvoCustomerId = customer.id
 
-            await (client.from('users') as any)
-                .update({ onvo_customer_id: onvoCustomerId })
+            await client
+                .from('users')
+                .update({ onvo_customer_id: onvoCustomerId } as never)
                 .eq('id', userId)
 
-        } catch (e) {
-            console.error('[CreateSubscription] Failed to create customer:', e)
-            throw createError({ statusCode: 500, message: 'Failed to register customer with payment provider' })
+        } catch (error) {
+            console.error('[CreateSubscription] Failed to create customer:', error)
+            throw createErrorResponse('Error al registrar cliente con el proveedor de pagos', 500)
         }
     }
 
     try {
+        // Handle free Solo plan
         if (plan === 'solo') {
-
-            await (client.from('users') as any)
+            await client
+                .from('users')
                 .update({
                     subscription_plan: 'solo',
                     subscription_status: 'active',
                     onvo_subscription_id: 'internal_free'
-                })
+                } as never)
                 .eq('id', userId)
 
-            return {
-                success: true,
-                url: null
-            }
+            return createSuccessResponse(
+                { url: null },
+                'Plan Solo activado exitosamente'
+            )
         }
 
+        // Create checkout session for paid plans
         const startupPriceId = config.onvoPriceStartup as string
 
-        let items = []
+        const items = []
         if (plan === 'startup' && startupPriceId) {
             items.push({
                 priceId: startupPriceId,
@@ -109,31 +114,31 @@ export default defineEventHandler(async (event) => {
         const checkoutSession = await onvo.createCheckoutLink({
             redirectUrl: `${config.public.siteUrl}/payment/success`,
             cancelUrl: `${config.public.siteUrl}/payment/processing?error=cancelled`,
-            customerEmail: user.email,
+            customerEmail: user.email || undefined,
             customerName: accountName,
             lineItems: items,
             metadata: {
                 supabase_user_id: userId,
                 plan: plan
             }
-        });
+        })
 
-        await (client.from('users') as any)
-            .update({
-                subscription_plan: plan
-            })
+        // Update user's selected plan
+        await client
+            .from('users')
+            .update({ subscription_plan: plan } as never)
             .eq('id', userId)
 
-        return {
-            success: true,
-            url: checkoutSession.url,
-            id: checkoutSession.id
-        }
+        return createSuccessResponse(
+            {
+                url: checkoutSession.url,
+                id: checkoutSession.id
+            },
+            'Sesión de pago creada exitosamente'
+        )
 
-    } catch (error: any) {
-        throw createError({
-            statusCode: 500,
-            message: error.message || 'Failed to create subscription'
-        })
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Error al crear suscripción'
+        throw createErrorResponse(errorMessage, 500)
     }
 })

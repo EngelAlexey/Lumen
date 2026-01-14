@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import * as z from 'zod'
-import { BUSINESS_TYPES } from '~/constants/businessTypes'
-import { MESSAGES } from '~/constants/messages'
+
+
 
 definePageMeta({
   layout: 'auth'
@@ -19,7 +19,7 @@ const currentStep = ref(0)
 const loading = ref(false)
 const error = ref('')
 
-const businessTypes = BUSINESS_TYPES
+const { businessTypes } = useBusinessTypes()
 
 const selectedPlan = computed(() => (route.query.plan as string) || 'startup')
 
@@ -169,18 +169,19 @@ async function handleRegister() {
             router.push(`/payment/processing?plan=${planName}&userId=${registerResult.user?.id}`)
        }
     } else {
-      error.value = MESSAGES.AUTH.REGISTER_ERROR
+      error.value = t('messages.auth.register_error')
     }
   } catch (err: any) {
     if (err.message?.includes('already registered') || err.message?.includes('User already registered')) {
         error.value = 'Este correo ya está registrado. Por favor inicia sesión.'
     } else {
-        error.value = err.message || MESSAGES.GENERIC.ERROR_UNEXPECTED
+        error.value = err.message || t('messages.generic.error_unexpected')
     }
   } finally {
     loading.value = false
   }
 }
+
 </script>
 
 <template>

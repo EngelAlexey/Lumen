@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import * as z from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
-import { roles } from '../../constants/options'
+
+const { roles } = useOptions()
 
 const props = defineProps<{
   user?: any
@@ -24,7 +25,7 @@ const state = reactive({
   role: 'cashier'
 })
 
-const selectedRole = ref(roles[1])
+const selectedRole = ref(roles.value[1])
 
 watch(() => props.user, (newUser) => {
   if (newUser) {
@@ -32,12 +33,12 @@ watch(() => props.user, (newUser) => {
     state.password = ''
     state.fullName = newUser.full_name || ''
     
-    const roleObj = roles.find(r => r.value === newUser.role)
+    const roleObj = roles.value.find(r => r.value === newUser.role)
     if (roleObj) {
       selectedRole.value = roleObj
       state.role = roleObj.value
     } else {
-      const defaultRole = roles[1]
+      const defaultRole = roles.value[1]
       if (defaultRole) {
         selectedRole.value = defaultRole
         state.role = defaultRole.value
@@ -48,7 +49,7 @@ watch(() => props.user, (newUser) => {
     state.password = ''
     state.fullName = ''
     state.role = 'cashier'
-    selectedRole.value = roles[1]
+    selectedRole.value = roles.value[1]
   }
 }, { immediate: true })
 

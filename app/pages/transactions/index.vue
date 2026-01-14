@@ -3,11 +3,12 @@ import type { Transaction } from '~/types/database.types'
 import PageHeader from '@/components/common/PageHeader.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
-import { transactionStatusOptions, transactionStatusColors, transactionStatusLabels } from '@/constants/statusOptions'
+
 import { formatCurrency, formatDateTime, formatPaymentMethod } from '@/utils/formatters'
 
 const { t } = useI18n()
 const { getTodayTransactions, getTransactions, payTransaction, updateTransactionStatus, fetchPaymentMethods, loading, paymentMethods } = useTransactions()
+const { transactionStatusOptions, getTransactionStatusLabel, getDeliveryStatusLabel, getPaymentMethodLabel } = useOptions()
 const toast = useToast()
 
 const transactions = ref<Transaction[]>([])
@@ -22,10 +23,8 @@ const paymentReference = ref('')
 const showStatusModal = ref(false)
 const newStatus = ref<string | null>(null)
 
-const statusOptions = computed(() => transactionStatusOptions.map(opt => ({
-  label: opt.value === null ? t('transactions.status.all') : t(`transactions.status.${opt.value}`),
-  value: opt.value
-})))
+// Use transactionStatusOptions directly from useOptions
+const statusOptions = transactionStatusOptions
 
 const columns = computed(() => [
   { accessorKey: 'transaction_number', header: 'Folio' },
@@ -143,27 +142,12 @@ function getProductNames(items: any[]): string {
 
 function formatPaymentEnum(method: string | null) {
     if (!method) return '-'
-    const map: Record<string, string> = {
-        'cash': 'Efectivo',
-        'card_manual': 'Tarjeta',
-        'stripe_checkout': 'Stripe (Online)',
-        'transfer': 'Transferencia',
-        'other': 'Otro'
-    }
-    return map[method] || method
+    return getPaymentMethodLabel(method)
 }
 
 function formatDeliveryStatus(status: string | null) {
     if (!status) return ''
-    const map: Record<string, string> = {
-        'pending': 'Pendiente',
-        'preparing': 'Preparando',
-        'ready': 'Listo',
-        'in_route': 'En Ruta',
-        'delivered': 'Entregado',
-        'cancelled': 'Cancelado'
-    }
-    return map[status] || status
+    return getDeliveryStatusLabel(status)
 }
 
 watch(statusFilter, () => loadTransactions())

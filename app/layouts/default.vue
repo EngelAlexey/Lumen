@@ -128,10 +128,8 @@ const { getRoleLabel, fetchCurrentRole, currentRole, isLoading: isLoadingRole } 
 const { navigation, labels, loadBusinessType, businessType, config } = useBusinessConfig()
 const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications()
 
-// User profile data
 const userProfile = computed(() => userStore.profile)
 
-// Computed
 const userRole = computed(() => {
   if (currentRole.value) return getRoleLabel(currentRole.value)
   if (isLoadingRole.value) return 'Cargando...'
@@ -150,7 +148,7 @@ const pageTitle = computed(() => {
   const path = route.path
   
   const navItem = navigation.value.find((item: { to: string }) => 
-    path === item.to || path.startsWith(item.to + '/')
+    path === item.to || (item.to !== '/' && path.startsWith(item.to + '/'))
   )
   if (navItem) return navItem.label
   

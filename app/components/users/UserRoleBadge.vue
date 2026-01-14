@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { UserRole } from '@/composables/useRoles'
+import type { UserRole } from '~/composables/utils/useRoles'
 
 defineProps<{
   role: UserRole

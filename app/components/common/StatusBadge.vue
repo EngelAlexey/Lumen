@@ -52,9 +52,19 @@ const badgeColor = computed(() => {
   return (typeColors?.[props.status] || 'neutral') as any
 })
 
+const { getRoleLabel, getStatusLabel } = useOptions()
+
 const badgeLabel = computed(() => {
   if (props.customLabels?.[props.status]) {
     return props.customLabels[props.status]
+  }
+
+  if (props.type === 'user_role') {
+    return getRoleLabel(props.status)
+  }
+
+  if (props.type === 'user') {
+    return getStatusLabel(props.status)
   }
   
   const typeLabels = defaultLabels[props.type || 'custom']

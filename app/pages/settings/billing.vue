@@ -1,32 +1,39 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
+
 definePageMeta({
   layout: 'default'
 })
 
 const { t } = useI18n()
 const user = useSupabaseUser()
-const { getBusinessType } = useAuth() // Assuming useAuth has business logic access or store
+const userStore = useUserStore()
+const { getBusinessType } = useAuth()
 const loading = ref(false)
 
-// We can reuse the plans data or fetch it
+// Get user's current subscription status from store
+const currentPlan = computed(() => {
+  return userStore.profile?.subscription_plan?.toLowerCase() || 'solo'
+})
+
 const plans = computed(() => [
   {
     name: 'Solo',
     title: t('pricing.plans.solo.name'),
     price: 0,
-    current: false // TODO: Check actual current plan
+    current: currentPlan.value === 'solo'
   },
   {
     name: 'Startup',
     title: t('pricing.plans.startup.name'),
     price: 29,
-    current: false
+    current: currentPlan.value === 'startup'
   },
   {
     name: 'Organization',
     title: t('pricing.plans.organization.name'),
     price: 89,
-    current: false
+    current: currentPlan.value === 'organization'
   }
 ])
 

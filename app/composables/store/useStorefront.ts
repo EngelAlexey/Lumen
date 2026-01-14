@@ -1,26 +1,54 @@
 import type { Business, Product } from '~/types/database.types'
 
+interface StoreSettings {
+    id: string
+    business_id: string
+    store_name: string | null
+    store_description: string | null
+    slug: string
+    logo_url: string | null
+    banner_url: string | null
+    primary_color: string
+    secondary_color: string
+    is_enabled: boolean
+    show_prices: boolean
+    allow_orders: boolean
+    contact_phone: string | null
+    contact_email: string | null
+    contact_whatsapp: string | null
+    business_hours: string | null
+    facebook_url: string | null
+    instagram_url: string | null
+}
+
 export const useStorefront = () => {
     const loading = ref(false)
     const error = ref<string | null>(null)
 
-    // State for the active store session
     const currentStore = ref<Business | null>(null)
+    const storeSettings = ref<StoreSettings | null>(null)
     const products = ref<Product[]>([])
 
-    // 1. Get Business Public Info by Slug
     const fetchStore = async (slug: string) => {
         try {
             loading.value = true
             error.value = null
 
-            // Use our public API endpoint (bypasses RLS for public fields)
-            const data = await $fetch<Business>(`/api/store/${slug}`)
+            // Fetch business data
+            const businessData = await $fetch<Business>(`/api/store/${slug}`)
+            currentStore.value = businessData
 
-            currentStore.value = data
-            return { success: true, data }
+            // Fetch store settings
+            try {
+                const settingsData = await $fetch<{ data: StoreSettings }>(`/api/store/${slug}/settings`)
+                storeSettings.value = settingsData.data
+            } catch (settingsError) {
+                // Settings are optional, continue if not found
+                console.warn('Store settings not found, using defaults')
+            }
+
+            return { success: true, data: businessData }
         } catch (e: any) {
-
             error.value = e.statusMessage || 'Tienda no encontrada'
             return { success: false, error: error.value }
         } finally {
@@ -28,7 +56,6 @@ export const useStorefront = () => {
         }
     }
 
-    // 2. Get Active Products for the store
     const fetchProducts = async (businessId: string) => {
         try {
             loading.value = true
@@ -40,16 +67,15 @@ export const useStorefront = () => {
             products.value = data || []
             return { success: true, data }
         } catch (e: any) {
-
             return { success: false, error: e.message }
         } finally {
             loading.value = false
         }
     }
 
-    // Unload store (e.g. leaving the page)
     const clearStore = () => {
         currentStore.value = null
+        storeSettings.value = null
         products.value = []
         error.value = null
     }
@@ -58,6 +84,7 @@ export const useStorefront = () => {
         loading,
         error,
         currentStore,
+        storeSettings,
         products,
         fetchStore,
         fetchProducts,

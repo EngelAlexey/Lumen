@@ -78,7 +78,8 @@ export interface Database {
                     cost: number | null
                     category: string | null
                     stock_quantity: number | null
-                    is_service: boolean | null
+                    product_type: 'physical' | 'service' | 'digital'
+                    is_service: boolean | null // @deprecated Use product_type
                     is_active: boolean | null
                     created_at: string
                     updated_at: string
@@ -96,6 +97,7 @@ export interface Database {
                     cost?: number | null
                     category?: string | null
                     stock_quantity?: number | null
+                    product_type?: 'physical' | 'service' | 'digital'
                     is_service?: boolean | null
                     is_active?: boolean | null
                     created_at?: string
@@ -231,6 +233,9 @@ export interface Database {
                     full_name?: string | null
                     role?: string | null
                     business_id?: string | null
+                    subscription_status?: string
+                    onvo_customer_id?: string | null
+                    onvo_subscription_id?: string | null
                     created_at?: string
                 }
             }
@@ -242,6 +247,7 @@ export interface Database {
                     slug: string
                     name: string
                     business_type: string
+                    business_config: Json | null
                     owner_id: string | null
                     phone: string | null
                     address: string | null
@@ -257,6 +263,7 @@ export interface Database {
                     slug: string
                     name: string
                     business_type: string
+                    business_config?: Json | null
                     owner_id?: string | null
                     phone?: string | null
                     address?: string | null
@@ -271,6 +278,7 @@ export interface Database {
                     id?: string
                     name?: string
                     business_type?: string
+                    business_config?: Json | null
                     owner_id?: string | null
                     phone?: string | null
                     address?: string | null

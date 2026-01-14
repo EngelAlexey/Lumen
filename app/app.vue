@@ -39,14 +39,12 @@ const userStore = useUserStore()
 
 onMounted(() => {
   initSessionKeeper()
-  // Ensure store is initialized globally
   userStore.initialize()
 
   client.auth.onAuthStateChange((event) => {
     if (event === 'SIGNED_OUT' && !isPublicRoute(route.path)) {
       router.push('/login')
     }
-    // Re-fetch on login-like events
     if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         userStore.fetchProfile()
     }

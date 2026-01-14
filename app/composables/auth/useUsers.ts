@@ -12,6 +12,7 @@ export interface User {
 }
 
 export const useUsers = () => {
+    const { t } = useI18n()
     const supabase = useSupabaseClient()
     const { currentRole, isAdmin } = useRoles()
 
@@ -53,7 +54,7 @@ export const useUsers = () => {
             return { success: true, user: response.user }
         } catch (error: any) {
 
-            const msg = error.data?.statusMessage || error.message || 'Error al crear usuario'
+            const msg = error.data?.statusMessage || error.message || t('messages.users.create_error')
             return { success: false, error: msg }
         }
     }
@@ -77,7 +78,7 @@ export const useUsers = () => {
             return { success: true }
         } catch (error: any) {
 
-            const msg = error.data?.statusMessage || error.message || 'Error al actualizar usuario'
+            const msg = error.data?.statusMessage || error.message || t('messages.users.update_error')
             return { success: false, error: msg }
         }
     }
@@ -92,7 +93,7 @@ export const useUsers = () => {
             return { success: true }
         } catch (error: any) {
 
-            const msg = error.data?.statusMessage || error.message || 'Error al eliminar usuario'
+            const msg = error.data?.statusMessage || error.message || t('messages.users.delete_error')
             return { success: false, error: msg }
         }
     }

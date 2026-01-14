@@ -1,5 +1,8 @@
+import type { LoginCredentials, RegisterData, AuthResponse } from '~/types/composables'
+import type { Database } from '~/types/database.types'
+
 export const useAuth = () => {
-    const client = useSupabaseClient<any>()
+    const client = useSupabaseClient<Database>()
     const userStore = useUserStore()
     const router = useRouter()
 
@@ -13,7 +16,7 @@ export const useAuth = () => {
         return window.location.origin
     }
 
-    const login = async (credentials: any) => {
+    const login = async (credentials: LoginCredentials): Promise<AuthResponse> => {
         try {
             userStore.loading = true
             userStore.error = null
@@ -31,15 +34,16 @@ export const useAuth = () => {
             await userStore.fetchProfile()
 
             return { success: true, ...data }
-        } catch (e: any) {
-            userStore.error = e.message
-            return { success: false, error: e.message }
+        } catch (e) {
+            const errorMessage = e instanceof Error ? e.message : 'Error al iniciar sesión'
+            userStore.error = errorMessage
+            return { success: false, error: errorMessage }
         } finally {
             userStore.loading = false
         }
     }
 
-    const register = async (data: any) => {
+    const register = async (data: RegisterData): Promise<AuthResponse> => {
         try {
             userStore.loading = true
             userStore.error = null
@@ -63,15 +67,16 @@ export const useAuth = () => {
             if (authError) throw authError
 
             return { success: true, ...authData }
-        } catch (e: any) {
-            userStore.error = e.message
-            throw e
+        } catch (e) {
+            const errorMessage = e instanceof Error ? e.message : 'Error al registrar'
+            userStore.error = errorMessage
+            throw new Error(errorMessage)
         } finally {
             userStore.loading = false
         }
     }
 
-    const logout = async () => {
+    const logout = async (): Promise<void> => {
         try {
             userStore.loading = true
             const { error: err } = await client.auth.signOut()
@@ -79,14 +84,14 @@ export const useAuth = () => {
 
             userStore.clear()
             router.push('/login')
-        } catch (e: any) {
-            userStore.error = e.message
+        } catch (e) {
+            userStore.error = e instanceof Error ? e.message : 'Error al cerrar sesión'
         } finally {
             userStore.loading = false
         }
     }
 
-    const updateProfile = async (updates: any) => {
+    const updateProfile = async (updates: Partial<Database['public']['Tables']['users']['Update']>): Promise<AuthResponse> => {
         try {
             userStore.loading = true
 
@@ -98,39 +103,44 @@ export const useAuth = () => {
                 })
             }
 
-            const { error: updateError } = await client
+            // Type assertion needed due to Supabase client type limitations
+            const { error: updateError } = await (client
                 .from('users')
-                .update(updates)
-                .eq('id', user.value.id)
+                .update(updates as never)
+                .eq('id', user.value.id))
 
             if (updateError) throw updateError
 
             await userStore.fetchProfile()
 
             return { success: true }
-        } catch (e: any) {
-            return { success: false, error: e.message }
+        } catch (e) {
+            const errorMessage = e instanceof Error ? e.message : 'Error al actualizar perfil'
+            return { success: false, error: errorMessage }
         } finally {
             userStore.loading = false
         }
     }
 
-    const updateBusiness = async (updates: any) => {
+    const updateBusiness = async (updates: Partial<Database['public']['Tables']['businesses']['Update']>): Promise<AuthResponse> => {
         try {
             userStore.loading = true
 
             if (!business.value?.id) throw new Error('No hay negocio asociado')
 
-            const { error: updateError } = await client
-                .from('businesses')
-                .update(updates)
-                .eq('id', business.value.id)
+            // Use API endpoint to update business (bypasses RLS)
+            await $fetch('/api/businesses/update', {
+                method: 'PATCH',
+                body: updates
+            })
 
-            if (updateError) throw updateError
+            // Refresh user data to get updated business
+            await userStore.fetchProfile()
 
             return { success: true }
-        } catch (e: any) {
-            return { success: false, error: e.message }
+        } catch (e) {
+            const errorMessage = e instanceof Error ? e.message : 'Error al actualizar negocio'
+            return { success: false, error: errorMessage }
         } finally {
             userStore.loading = false
         }

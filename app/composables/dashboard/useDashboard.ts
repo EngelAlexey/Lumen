@@ -1,5 +1,5 @@
-import { useTransactions } from './useTransactions'
-import { useCashRegister } from './useCashRegister'
+import { useTransactions } from '../transactions/useTransactions'
+import { useCashRegister } from '../cart/useCashRegister'
 
 export const useDashboard = () => {
     const { getTodayTransactions, getTransactions } = useTransactions()

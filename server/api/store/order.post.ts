@@ -1,21 +1,15 @@
 import { serverSupabaseServiceRole } from '#supabase/server'
 import type { Database } from '~/types/database.types'
 
+import { validateOrderParams } from '../../validations/store'
+
 export default defineEventHandler(async (event) => {
     const body = await readBody(event)
-    const { businessId, customer, items, paymentMethod = 'cash' } = body
-
-    if (!businessId || !customer || !items || items.length === 0) {
-        throw createError({
-            statusCode: 400,
-            statusMessage: 'Faltan datos requeridos'
-        })
-    }
+    const { businessId, customer, items, paymentMethod } = validateOrderParams(body)
 
     const client = serverSupabaseServiceRole<Database>(event) as any
 
     try {
-        // 1. Find or Create Customer
         let customerId: string | null = null
 
         if (customer.phone) {
@@ -64,24 +58,17 @@ export default defineEventHandler(async (event) => {
                 .eq('id', customerId)
         }
 
-        // 2. Create Transaction
         const subtotal = items.reduce((sum: number, item: any) => {
             return sum + ((item.price - (item.discount || 0)) * item.quantity)
         }, 0)
-
-        // Tax calculation could be added here if needed, for now 0
         const tax = 0
         const total = subtotal + tax
 
-        // Generate Transaction Number (simple implementation)
         const timestamp = Date.now().toString().slice(-6)
         const randomInfo = Math.floor(Math.random() * 1000).toString().padStart(3, '0')
         const transactionNumber = `ORD-${timestamp}-${randomInfo}`
-
-        // Determine status based on payment method
-        const isPaidOnDelivery = paymentMethod === 'cash' || paymentMethod === 'transfer'
-        const transactionStatus = isPaidOnDelivery ? 'paid' : 'pending'
-        const paymentMethodCode = paymentMethod === 'cash' ? 'cash' : (paymentMethod === 'transfer' ? 'transfer' : 'other')
+        const transactionStatus = 'pending'
+        const paymentMethodCode = paymentMethod === 'card' ? 'stripe_checkout' : 'transfer'
 
         const { data: transaction, error: txnError } = await client
             .from('transactions')
@@ -99,32 +86,22 @@ export default defineEventHandler(async (event) => {
                 notes: `Pedido Online - ${customer.full_name}. Método: ${paymentMethod}. Notas: ${customer.notes || ''}`,
                 delivery_date: null,
                 shipping_address: customer.address,
-                paid_at: isPaidOnDelivery ? new Date().toISOString() : null
+                cash_session_id: null,
+                paid_at: null
             })
             .select()
             .single()
 
         if (txnError) throw txnError
 
-        // 3. Create Transaction Items
         const transactionItems = items.map((item: any) => ({
             transaction_id: transaction.id,
             product_id: item.productId,
             quantity: item.quantity,
             price: item.price,
             discount: item.discount || 0,
-            business_id: businessId // Ensure this field exists or remove if not in schema
+            business_id: businessId
         }))
-
-        // NOTE: If transaction_items doesn't have business_id, map without it. 
-        // Based on typical schema it might, but checking safest path.
-        // I will assume it DOES NOT have business_id based on typical item tables, 
-        // but if it does, it's safer to check or add it.
-        // Looking at database.types.ts in Step 501, it didn't show full details.
-        // I'll stick to the core fields. If it fails, I'll know.
-        // Correction: Most likely transaction_items is linked via transaction_id.
-        // Let's remove business_id from items just to be safe or add it if the schema requires.
-        // Safest is to stick to what was there. The previous code didn't have business_id.
 
         const { error: itemsError } = await client
             .from('transaction_items')
@@ -140,8 +117,7 @@ export default defineEventHandler(async (event) => {
 
         if (itemsError) throw itemsError
 
-        // If online payment, create payment link
-        if (paymentMethod === 'online') {
+        if (paymentMethod === 'card') {
             const onvo = useOnvo()
             const config = useRuntimeConfig()
 
@@ -162,7 +138,6 @@ export default defineEventHandler(async (event) => {
                     }
                 })
 
-                // Update transaction with payment URL
                 await client
                     .from('transactions')
                     .update({
@@ -173,7 +148,6 @@ export default defineEventHandler(async (event) => {
 
                 return { success: true, orderId: transaction.id, paymentUrl: link.url }
             } catch (paymentError: any) {
-                // If payment link creation fails, still return success but without payment link
                 return { success: true, orderId: transaction.id, error: 'Payment link unavailable' }
             }
         }

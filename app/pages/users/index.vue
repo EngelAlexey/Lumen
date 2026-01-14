@@ -3,7 +3,7 @@ import UserForm from '@/components/users/UserForm.vue'
 import PageHeader from '@/components/common/PageHeader.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import StatusBadge from '@/components/common/StatusBadge.vue'
-import { roleOptions, statusOptions } from '@/constants/options'
+
 
 const { t } = useI18n()
 const { getBusinessUsers, createUser, deleteUser, updateUserFull } = useUsers()
@@ -17,10 +17,12 @@ const form = ref()
 const showModal = ref(false)
 const saving = ref(false)
 
+const { roleOptions: roles, statusOptions: statuses, getRoleLabel } = useOptions()
+
 // Filters
 const search = ref('')
-const roleFilter = ref(roleOptions[0])
-const statusFilter = ref(statusOptions[0])
+const roleFilter = ref(roles.value[0])
+const statusFilter = ref(statuses.value[0])
 
 const userStore = useUserStore()
 const currentUserId = computed(() => userStore.user?.id || userStore.profile?.id) // Robust ID check
@@ -66,8 +68,8 @@ const filteredUsers = computed(() => {
 })
 
 // Ensure options are reactive and searchable
-const filterRoles = computed(() => roleOptions)
-const filterStatus = computed(() => statusOptions)
+const filterRoles = computed(() => roles.value)
+const filterStatus = computed(() => statuses.value)
 
 // Columns with i18n
 const columns = computed(() => [
@@ -220,11 +222,6 @@ onMounted(async () => {
           <StatusBadge 
             :status="row.original.role" 
             type="user_role" 
-            :customLabels="{
-              owner: t('users.roles.owner'),
-              admin: t('users.roles.admin'),
-              employee: t('users.roles.employee')
-            }"
           />
         </template>
         

@@ -36,38 +36,21 @@ export class OnvoClient {
         customerName?: string;
         customerEmail?: string;
         redirectUrl: string;
-        cancelUrl?: string; // Not always documented but common
+        cancelUrl?: string;
         lineItems?: any[];
         metadata?: Record<string, any>;
     }) {
-        // Based on: POST /checkout/sessions/one-time-link
-        /*
-         Docs say:
-         customerName
-         customerEmail
-         redirectUrl
-         lineItems: [{ description, unitAmount, currency, quantity }]
-         metadata
-        */
         return this.request<{ url: string; id: string }>('/checkout/sessions/one-time-link', 'POST', payload);
     }
 
-    // Since we need to support Subscriptions, and if Checkout doesn't support them directly,
-    // we might need to use the Recurring Charges API directly.
-    // Based on user input: POST /subscriptions (implied from "Crear un Cargo recurrente")
     async createSubscription(payload: {
         customerId: string;
         items: Array<{ priceId?: string; unitAmount?: number; currency?: string; quantity?: number }>;
         billingCycleAnchor?: string;
         paymentBehavior?: 'allow_incomplete' | 'default_incomplete';
-        paymentMethodId?: string; // Required if not allow_incomplete
-        returnUrl?: string; // If using a flow that redirects
+        paymentMethodId?: string;
+        returnUrl?: string;
     }) {
-        // Assumption: endpoint is /subscriptions based on "Crear un Cargo recurrente" context usually mapping to subscriptions
-        // If the docs say "Recurring Charge", the endpoint might be /recurring-charges
-        // I will use /subscriptions as a placeholder, if 404 I will check exact endpoint again.
-        // User provided: "Crear un Cargo recurrente" -> likely POST /recurring-charges or /subscriptions.
-        // Let's assume /subscriptions for now as per common REST standards for this resource.
         return this.request<any>('/subscriptions', 'POST', payload);
     }
 

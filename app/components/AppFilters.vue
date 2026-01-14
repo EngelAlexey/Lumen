@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
+
 defineProps<{
   modelValue: string
   placeholder?: string
@@ -14,7 +18,7 @@ defineEmits(['update:modelValue'])
          :model-value="modelValue"
          @update:model-value="$emit('update:modelValue', $event)"
          icon="i-heroicons-magnifying-glass" 
-         :placeholder="placeholder || 'Buscar...'"
+         :placeholder="placeholder || t('common.search', 'Buscar...')"
          class="min-w-[200px]"
        />
        

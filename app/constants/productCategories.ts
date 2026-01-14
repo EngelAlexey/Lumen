@@ -1,8 +1,3 @@
-/**
- * Product categories
- * Can be extended or loaded from database in the future
- */
-
 export const productCategories = [
     { value: 'general', label_key: 'products.categories.general' },
     { value: 'services', label_key: 'products.categories.services' },

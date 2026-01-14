@@ -1,4 +1,109 @@
 {
+    "validations": {
+        "missing_data": "Missing required data (businessId, customer, items)",
+        "incomplete_customer": "Incomplete customer information (name and phone required)"
+    },
+    "business_types": {
+        "retail": {
+            "label": "Retail (Store/Bazaar)",
+            "description": "Stores, mini markets, bazaars"
+        },
+        "restaurant": {
+            "label": "Gastronomy (Restaurant/Bar)",
+            "description": "Restaurants, diners, cafeterias"
+        },
+        "services": {
+            "label": "Services (Workshop/Beauty)",
+            "description": "Workshops, beauty salons, consulting"
+        },
+        "pharmacy": {
+            "label": "Pharmacy (Health)",
+            "description": "Pharmacies and drugstores"
+        },
+        "fashion": {
+            "label": "Fashion (Clothing/Accessories)",
+            "description": "Boutiques, shoe stores"
+        },
+        "delivery": {
+            "label": "Distribution (Delivery)",
+            "description": "Logistics and deliveries"
+        },
+        "online": {
+            "label": "Online Only",
+            "description": "E-commerce without physical store"
+        },
+        "hybrid": {
+            "label": "Hybrid",
+            "description": "Physical store + online"
+        }
+    },
+    "roles": {
+        "owner": "Owner",
+        "manager": "Manager",
+        "cashier": "Cashier",
+        "staff": "Staff",
+        "all": "All Roles"
+    },
+    "status": {
+        "active": "Active",
+        "inactive": "Inactive",
+        "all": "All",
+        "transaction": {
+            "paid": "Paid",
+            "pending": "Pending",
+            "delivered": "Delivered",
+            "cancelled": "Cancelled"
+        },
+        "delivery": {
+            "pending": "Pending",
+            "preparing": "Preparing",
+            "ready": "Ready",
+            "in_route": "In Route",
+            "delivered": "Delivered",
+            "cancelled": "Cancelled"
+        },
+        "payment_method": {
+            "cash": "Cash",
+            "card_manual": "Card",
+            "transfer": "Transfer",
+            "stripe_checkout": "Stripe / Online",
+            "other": "Other"
+        }
+    },
+    "common": {
+        "search": "Search..."
+    },
+    "messages": {
+        "validation": {
+            "email_invalid": "Invalid email",
+            "password_min_length": "Password must be at least 8 characters",
+            "passwords_dont_match": "Passwords do not match",
+            "name_too_short": "Name is too short",
+            "required_field": "This field is required"
+        },
+        "auth": {
+            "login_success": "Login successful",
+            "login_error": "Invalid credentials",
+            "register_success": "Registration successful. Please verify your email.",
+            "register_error": "Error registering account",
+            "invalid_session": "User without assigned business or invalid session"
+        },
+        "generic": {
+            "error_unexpected": "An unexpected error occurred",
+            "success": "Operation successful"
+        },
+        "transactions": {
+            "require_cash_session": "This business requires an open cash session for in-person sales",
+            "payment_received": "Payment Received!",
+            "sale_charged": "Sale #{number} has been charged successfully.",
+            "payment_link_error": "Error generating payment link"
+        },
+        "users": {
+            "create_error": "Error creating user",
+            "update_error": "Error updating user",
+            "delete_error": "Error deleting user"
+        }
+    },
     "validation": {
         "email_invalid": "Invalid email",
         "password_min_length": "Password must be at least 8 characters",

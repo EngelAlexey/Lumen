@@ -1,5 +1,7 @@
 import { serverSupabaseClient } from '#supabase/server'
 import { createClient } from '@supabase/supabase-js'
+import { createUserSchema } from '../../validations/schemas'
+import { validateBody, createSuccessResponse, createErrorResponse } from '../../utils/validation'
 
 export default defineEventHandler(async (event) => {
     const config = useRuntimeConfig(event)
@@ -7,27 +9,27 @@ export default defineEventHandler(async (event) => {
     const serviceKey = config.supabaseServiceKey
 
     if (!supabaseUrl || !serviceKey) {
-        throw createError({ statusCode: 500, message: 'Server configuration error' })
+        throw createErrorResponse('Server configuration error', 500)
     }
 
+    // Authenticate requester
     const client = await serverSupabaseClient(event)
     const { data: { user: requesterUser }, error: userError } = await client.auth.getUser()
 
-    if (userError || !requesterUser || !requesterUser.id) {
-        throw createError({ statusCode: 401, statusMessage: 'Unauthorized - Invalid Session' })
+    if (userError || !requesterUser?.id) {
+        throw createErrorResponse('Sesión inválida', 401)
     }
 
+    // Validate request body with Zod
+    const validatedData = await validateBody(event, createUserSchema)
+    const { full_name, email, password, role, status } = validatedData
+
+    // Create admin client
     const supabaseAdmin = createClient(supabaseUrl, serviceKey, {
         auth: { autoRefreshToken: false, persistSession: false }
     })
 
-    const body = await readBody(event)
-    const { email, password, fullName, phone, role } = body
-
-    if (!email || !password || !fullName || !role) {
-        throw createError({ statusCode: 400, statusMessage: 'Faltan campos requeridos' })
-    }
-
+    // Check requester permissions
     const { data: requesterProfile, error: profileError } = await supabaseAdmin
         .from('users')
         .select('role, business_id')
@@ -35,52 +37,54 @@ export default defineEventHandler(async (event) => {
         .single()
 
     if (profileError || !requesterProfile) {
-        throw createError({
-            statusCode: 403,
-            statusMessage: 'Perfil no encontrado',
-            message: 'No se pudo verificar el rol del usuario solicitante'
-        })
+        throw createErrorResponse('No se pudo verificar el rol del usuario', 403)
     }
 
     const isOwner = requesterProfile.role === 'owner'
-    const isManager = requesterProfile.role === 'manager'
+    const isAdmin = requesterProfile.role === 'admin'
 
-    if (!isOwner && !isManager) {
-        throw createError({ statusCode: 403, statusMessage: 'No tienes permisos para crear usuarios' })
-    }
-    if (isManager && (role === 'owner' || role === 'manager')) {
-        throw createError({ statusCode: 403, statusMessage: 'Gerentes solo pueden crear staff/cajeros' })
+    if (!isOwner && !isAdmin) {
+        throw createErrorResponse('No tienes permisos para crear usuarios', 403)
     }
 
+    if (isAdmin && (role === 'owner' || role === 'admin')) {
+        throw createErrorResponse('Administradores solo pueden crear empleados', 403)
+    }
+
+    // Create auth user
     const { data: newUser, error: createAuthError } = await supabaseAdmin.auth.admin.createUser({
         email,
         password,
         email_confirm: true,
         user_metadata: {
-            full_name: fullName,
-            phone: phone || null,
+            full_name,
             role,
             business_id: requesterProfile.business_id
         }
     })
 
     if (createAuthError) {
-        throw createError({ statusCode: 400, message: createAuthError.message })
+        throw createErrorResponse(createAuthError.message, 400)
     }
 
+    // Insert into users table
     const { error: insertError } = await supabaseAdmin.from('users').upsert({
         id: newUser.user.id,
         email,
-        full_name: fullName,
+        full_name,
         role,
         business_id: requesterProfile.business_id,
-        phone: phone || null
+        is_active: status === 'active'
     })
 
     if (insertError) {
+        // Rollback auth user creation if insert fails
         await supabaseAdmin.auth.admin.deleteUser(newUser.user.id)
-        throw createError({ statusCode: 500, message: 'Error en tabla users: ' + insertError.message })
+        throw createErrorResponse(`Error al crear usuario: ${insertError.message}`, 500)
     }
 
-    return { success: true, user: newUser.user }
+    return createSuccessResponse(
+        { user: newUser.user },
+        'Usuario creado exitosamente'
+    )
 })

@@ -1,7 +1,5 @@
 export type UserRole = 'owner' | 'manager' | 'cashier' | 'staff'
 
-
-
 export const useRoles = () => {
     const userStore = useUserStore()
 
@@ -64,13 +62,8 @@ export const useRoles = () => {
     }
 
     const getRoleLabel = (role: UserRole): string => {
-        const labels: Record<UserRole, string> = {
-            owner: 'Propietario',
-            manager: 'Gerente',
-            cashier: 'Cajero',
-            staff: 'Personal'
-        }
-        return labels[role] || role
+        const { getRoleLabel: getLabel } = useOptions()
+        return getLabel(role)
     }
 
     const getRoleColor = (role: UserRole): string => {

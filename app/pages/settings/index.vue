@@ -65,9 +65,10 @@
 
         <!-- Business Settings -->
         <div v-if="activeTab === 'business'" class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
-          <div v-if="!isOwner && !isManager" class="text-center py-8 text-gray-500">
+          <div v-if="!isOwner" class="text-center py-8 text-gray-500">
             <UIcon name="i-heroicons-lock-closed" class="w-12 h-12 mx-auto mb-2 text-gray-400" />
-            <p>Solo los propietarios y gerentes pueden editar los datos del negocio.</p>
+            <p>Solo el propietario puede editar los datos del negocio.</p>
+            <p class="text-sm mt-2">Los gerentes pueden editar la configuración de la tienda en Store Settings.</p>
           </div>
 
           <div v-else>
@@ -182,7 +183,7 @@
 const supabase = useSupabaseClient<any>()
 const { updateProfile, updateBusiness } = useAuth()
 const { getRoleLabel, isOwner, isManager, currentRole } = useRoles()
-const { loadBusinessType, config, businessType: currentBusinessType } = useBusinessConfig()
+const { loadBusinessType, config, businessType: currentBusinessType, getBusinessPreset } = useBusinessConfig()
 const userStore = useUserStore()
 const toast = useToast()
 
@@ -195,9 +196,9 @@ const tabs = [
   { id: 'business', label: 'Mi Negocio', icon: 'i-heroicons-building-storefront' },
 ]
 
-import { BUSINESS_TYPES } from '~/constants/businessTypes'
 
-const businessTypes = BUSINESS_TYPES
+
+const { businessTypes } = useBusinessTypes()
 
 const profileForm = reactive({
   fullName: '',
@@ -219,7 +220,7 @@ const roleLabel = computed(() => {
 })
 
 const getBusinessTypeLabel = (type: string) => {
-  const found = businessTypes.find(t => t.value === type)
+  const found = businessTypes.value.find((t: any) => t.value === type)
   return found?.label || type
 }
 
@@ -300,18 +301,26 @@ const executeBusinessUpdate = async () => {
     }
 
     // 2. Update Business Info
-    const { success, error } = await updateBusiness({
+    const updates: any = {
       name: businessForm.name,
       business_type: businessForm.type,
       phone: businessForm.phone,
       address: businessForm.address
-    })
+    }
+
+    // If type changed, we MUST reset the business_config to the new preset 
+    // to avoid carrying over incompatible settings from the previous type
+    if (pendingBusinessType.value === businessForm.type) {
+        updates.business_config = getBusinessPreset(businessForm.type as any)
+    }
+
+    const { success, error } = await updateBusiness(updates)
 
     if (success) {
+      // Reload business type to update the navigation menu
+      await loadBusinessType()
+      
       toast.add({ title: 'Negocio actualizado', color: 'success' })
-      // Since it's realtime, store will update. 
-      // We can force a reload of business config logic if needed, 
-      // but useBusinessConfig is now reactive to store.
       
       toast.add({ 
         title: 'Menú actualizado', 

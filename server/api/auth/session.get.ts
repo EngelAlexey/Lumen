@@ -29,39 +29,29 @@ export default defineEventHandler(async (event) => {
 
     const userWithBusiness = userProfile as { business_id: string | null;[key: string]: any }
     let business = null
+
+    // 1. Try to fetch by explicit Business ID
     if (userWithBusiness.business_id) {
-        const { data, error } = await serviceRole
+        const { data } = await serviceRole
             .from('businesses')
             .select('*')
             .eq('id', userWithBusiness.business_id)
             .single()
 
-        if (!error && data) {
-            business = data
-        } else {
-            const { data: fallbackData } = await serviceRole
-                .from('businesses')
-                .select('*')
-                .eq('owner_id', user.id)
-                .single()
+        if (data) business = data
+    }
 
-            if (fallbackData) {
-                business = fallbackData
-
-                // @ts-ignore - Supabase type inference issue
-                await serviceRole.from('users').update({ business_id: fallbackData.id }).eq('id', user.id)
-            }
-        }
-    } else {
-        const { data, error } = await serviceRole
+    // 2. Fallback: Search by Owner ID if not found
+    if (!business) {
+        const { data } = await serviceRole
             .from('businesses')
             .select('*')
             .eq('owner_id', user.id)
             .single()
 
-        if (!error && data) {
+        if (data) {
             business = data
-
+            // 3. Repair Link: Update user if business was found but not linked
             // @ts-ignore - Supabase type inference issue
             await serviceRole.from('users').update({ business_id: data.id }).eq('id', user.id)
         }

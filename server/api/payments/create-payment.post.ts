@@ -1,5 +1,5 @@
 import { serverSupabaseServiceRole } from '#supabase/server'
-import { Database } from '../../../app/types/database.types'
+import type { Database } from '~/types/database.types'
 import { useOnvo } from '../../utils/onvo'
 
 export default defineEventHandler(async (event) => {

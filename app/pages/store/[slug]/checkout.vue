@@ -25,14 +25,13 @@ onMounted(async () => {
     }
 })
 
-// Schema for Customer Details
 const schema = z.object({
     full_name: z.string().min(1, 'El nombre es obligatorio'),
     phone: z.string().min(1, 'El teléfono es obligatorio'),
     email: z.string().email('Correo inválido').or(z.literal('')),
     address: z.string().min(1, 'La dirección es obligatoria'),
     notes: z.string().optional(),
-    payment_method: z.enum(['online', 'cash', 'transfer']).default('online')
+    payment_method: z.enum(['card', 'transfer']).default('card')
 })
 
 const state = reactive({
@@ -41,13 +40,23 @@ const state = reactive({
     email: '',
     address: '',
     notes: '',
-    payment_method: 'online' as 'online' | 'cash' | 'transfer'
+    payment_method: 'card' as 'card' | 'transfer'
 })
 
+// Payment methods for ONLINE STORE (no cash!)
 const paymentMethods = [
-    { value: 'online', label: 'Pagar Ahora (Tarjeta Online)', icon: 'i-heroicons-credit-card' },
-    { value: 'cash', label: 'Efectivo Contra Entrega', icon: 'i-heroicons-banknotes' },
-    { value: 'transfer', label: 'Transferencia (Enviar Comprobante)', icon: 'i-heroicons-arrow-path' }
+    { 
+        value: 'card', 
+        label: 'Tarjeta Débito/Crédito', 
+        icon: 'i-heroicons-credit-card',
+        description: 'Pago seguro con Onvo'
+    },
+    { 
+        value: 'transfer', 
+        label: 'Transferencia Bancaria', 
+        icon: 'i-heroicons-building-library',
+        description: 'Enviaremos instrucciones por correo'
+    }
 ]
 
 async function onSubmit(event: FormSubmitEvent<any>) {
@@ -79,18 +88,16 @@ async function onSubmit(event: FormSubmitEvent<any>) {
         if (result.success) {
             cart.clearCart()
             
-            // If online payment, redirect to payment link
-            if (event.data.payment_method === 'online' && result.paymentUrl) {
+            // If card payment, redirect to payment link
+            if (event.data.payment_method === 'card' && result.paymentUrl) {
                 window.location.href = result.paymentUrl
                 return
             }
             
-            // For cash/transfer, show success and go back to store
+            // For transfer, show success and go back to store
             toast.add({
                 title: 'Pedido Confirmado',
-                description: event.data.payment_method === 'cash' 
-                    ? 'Tu pedido ha sido confirmado. Paga en efectivo al recibir.'
-                    : 'Tu pedido ha sido confirmado. Envía el comprobante de transferencia.',
+                description: 'Tu pedido ha sido confirmado. Envía el comprobante de transferencia a nuestro correo.',
                 color: 'success',
                 duration: 6000
             })
@@ -189,7 +196,7 @@ async function onSubmit(event: FormSubmitEvent<any>) {
                                         v-for="method in paymentMethods"
                                         :key="method.value"
                                         type="button"
-                                        @click="state.payment_method = method.value as 'online' | 'cash' | 'transfer'"
+                                        @click="state.payment_method = method.value as 'card' | 'transfer'"
                                         :class="[
                                             'relative p-4 rounded-xl border-2 transition-all duration-200',
                                             'hover:shadow-md flex flex-col items-center gap-2 text-center',
@@ -245,7 +252,7 @@ async function onSubmit(event: FormSubmitEvent<any>) {
                                     class="shadow-lg"
                                     icon="i-heroicons-check-circle"
                                 >
-                                    {{ state.payment_method === 'online' ? 'Continuar al Pago' : 'Confirmar Pedido' }}
+                                    {{ state.payment_method === 'card' ? 'Continuar al Pago' : 'Confirmar Pedido' }}
                                 </UButton>
                             </div>
                         </UForm>

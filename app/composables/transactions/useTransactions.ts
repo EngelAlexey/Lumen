@@ -5,34 +5,31 @@ import type {
     TransactionItemInsert,
     PaymentMethod
 } from '~/types/database.types'
-import type { CartItem } from './useCart'
+import type { CartItem } from '../cart/useCart'
+import { useI18n } from 'vue-i18n'
 
 export const useTransactions = () => {
+    const { t } = useI18n()
     const supabase = useSupabaseClient<any>()
     const userStore = useUserStore()
+    // ...
 
     const loading = ref(false)
     const paymentMethods = ref<PaymentMethod[]>([])
+    const user = useSupabaseUser()
 
-    // Helper to ensure business context is ready
     const ensureContext = async () => {
-        if (!userStore.isready) {
-            await userStore.initialize()
+        if (!user.value) throw new Error(t('messages.auth.invalid_session'))
+
+        // Get business_id from profile, not from user_metadata
+        const businessId = userStore.profile?.business_id
+
+        if (!businessId) {
+            throw new Error(t('messages.auth.invalid_session'))
         }
 
-        // Double check: If data is missing but initialized, force a refresh
-        if (!userStore.business?.id) {
-            await userStore.fetchProfile()
-        }
-
-        const userId = userStore.user?.id || userStore.profile?.id
-        const businessId = userStore.business?.id
-
-        if (!businessId || !userId) {
-            throw new Error('Usuario sin negocio asignado o sesión inválida')
-        }
         return {
-            userId,
+            userId: user.value.id,
             businessId
         }
     }
@@ -51,7 +48,7 @@ export const useTransactions = () => {
     }
 
     const createTransaction = async (data: {
-        cashSessionId: string
+        cashSessionId?: string | null
         paymentMethodId?: string | null
         items: CartItem[]
         customerName?: string
@@ -62,11 +59,22 @@ export const useTransactions = () => {
         customerId?: string
         deliveryStatus?: 'pending' | 'preparing' | 'ready' | 'in_route' | 'delivered' | 'cancelled'
         paymentMethod?: 'cash' | 'card_manual' | 'stripe_checkout' | 'transfer' | 'other'
+        source?: 'pos' | 'online_store'
     }) => {
         loading.value = true
 
         try {
             const { userId, businessId } = await ensureContext()
+            const { config } = useBusinessConfig()
+
+            const requiresCashSession = config.value.customizations.transactions.requireCashSession
+            const isOnlineSource = data.source === 'online_store'
+
+            if (requiresCashSession && !isOnlineSource && !data.cashSessionId) {
+                throw new Error(t('messages.transactions.require_cash_session'))
+            }
+
+            const finalCashSessionId = isOnlineSource ? null : data.cashSessionId
 
             const subtotal = data.items.reduce((sum, item) => sum + (item.product.price * item.quantity), 0)
             const discount = data.items.reduce((sum, item) => sum + (item.discount * item.quantity), 0)
@@ -76,11 +84,11 @@ export const useTransactions = () => {
 
             const transactionPayload: TransactionInsert = {
                 business_id: businessId,
-                cash_session_id: data.cashSessionId,
+                cash_session_id: finalCashSessionId,
                 payment_method_id: isPaid ? data.paymentMethodId || null : null,
                 status: transactionStatus,
                 subtotal,
-                tax: 0, // TODO: Implement tax calculation
+                tax: 0,
                 discount,
                 total,
                 customer_name: data.customerName || null,
@@ -154,11 +162,11 @@ export const useTransactions = () => {
                 const { error: notifError } = await supabase
                     .from('notifications')
                     .insert({
-                        user_id: userStore.user?.id,
+                        user_id: user.value?.id,
                         business_id: transaction.business_id,
                         type: 'transaction_paid',
-                        title: '¡Pago Recibido!',
-                        message: `Venta #${transaction.transaction_number} ha sido cobrada exitosamente.`,
+                        title: t('messages.transactions.payment_received'),
+                        message: t('messages.transactions.sale_charged', { number: transaction.transaction_number }),
                         data: { transaction_id: transaction.id },
                         read: false
                     })
@@ -309,7 +317,7 @@ export const useTransactions = () => {
             return { success: true, url }
         } catch (error: any) {
 
-            return { success: false, error: error.message || 'Error generando link de pago' }
+            return { success: false, error: error.message || t('messages.transactions.payment_link_error') }
         }
     }
 

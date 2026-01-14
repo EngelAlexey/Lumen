@@ -12,7 +12,7 @@ export default defineEventHandler(async (event) => {
     }
 
     const body = await readBody(event)
-    const eventType = body.type // e.g. 'checkout-session.succeeded', 'subscription.active'
+    const eventType = body.type
     const data = body.data
 
     console.log(`[Onvo Webhook] Received event: ${eventType}`, data.id)
@@ -20,9 +20,6 @@ export default defineEventHandler(async (event) => {
     const client = serverSupabaseServiceRole<Database>(event)
 
     try {
-        // Handle Events
-
-        // 1. One-time Payment Success
         if (eventType === 'checkout-session.succeeded') {
             const transactionId = data.metadata?.transaction_id
             if (transactionId) {
@@ -38,10 +35,8 @@ export default defineEventHandler(async (event) => {
             }
         }
 
-        // 2. Subscription Active / Created
         if (eventType === 'subscription.created' || eventType === 'subscription.active') {
             const onvoCustomerId = data.customerId
-            // Find business by Onvo Customer ID
             if (onvoCustomerId) {
                 await (client
                     .from('businesses') as any)
@@ -55,9 +50,7 @@ export default defineEventHandler(async (event) => {
             }
         }
 
-        // 3. Subscription Invoice Paid (Recurring success)
         if (eventType === 'invoice.payment_succeeded') {
-            // Refresh status or extend date
             const onvoSubscriptionId = data.subscriptionId
             if (onvoSubscriptionId) {
                 await (client
