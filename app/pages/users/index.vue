@@ -1,61 +1,84 @@
 <script setup lang="ts">
-import * as z from 'zod'
-import type { FormSubmitEvent } from '@nuxt/ui'
+import UserForm from '@/components/users/UserForm.vue'
+import PageHeader from '@/components/common/PageHeader.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
+import StatusBadge from '@/components/common/StatusBadge.vue'
 
+
+const { t } = useI18n()
 const { getBusinessUsers, createUser, deleteUser, updateUserFull } = useUsers()
-const { fetchCurrentRole, currentRole, getRoleLabel, getRoleColor } = useRoles()
+const { fetchCurrentRole, currentRole, } = useRoles()
 const toast = useToast()
 
 const loading = ref(true)
 const users = ref<any[]>([])
+const editingUser = ref<any>(null)
+const form = ref()
 const showModal = ref(false)
 const saving = ref(false)
-const form = ref()
 
-const schema = z.object({
-  fullName: z.string().min(1, 'Nombre requerido'),
-  email: z.string().email('Email inválido'),
-  password: z.string().min(6, 'Mínimo 6 caracteres'),
-  role: z.string()
-})
+const { roleOptions: roles, statusOptions: statuses, getRoleLabel } = useOptions()
 
-const formData = reactive({
-  email: '',
-  password: '',
-  fullName: '',
-  role: 'cashier'
-})
+// Filters
+const search = ref('')
+const roleFilter = ref(roles.value[0])
+const statusFilter = ref(statuses.value[0])
 
-const roles = [
-  { label: 'Gerente', value: 'manager' },
-  { label: 'Cajero', value: 'cashier' },
-  { label: 'Personal', value: 'staff' }
-]
+const userStore = useUserStore()
+const currentUserId = computed(() => userStore.user?.id || userStore.profile?.id) // Robust ID check
 
 const isOwner = computed(() => currentRole.value === 'owner')
 
-const columns = [
-  {
-    accessorKey: 'full_name',
-    header: 'Nombre'
-  },
-  {
-    accessorKey: 'email',
-    header: 'Email'
-  },
-  {
-    accessorKey: 'role',
-    header: 'Rol'
-  },
-  {
-    accessorKey: 'is_active',
-    header: 'Estado'
-  },
-  {
-    id: 'actions',
-    header: ''
+const filteredUsers = computed(() => {
+  let result = [...users.value]
+
+  // Search
+  if (search.value) {
+    const q = search.value.toLowerCase()
+    result = result.filter(u => 
+      u.full_name?.toLowerCase().includes(q) || 
+      u.email?.toLowerCase().includes(q)
+    )
   }
-]
+
+  // Role Filter
+  const selectedRole = roleFilter.value?.value
+  if (selectedRole && selectedRole !== 'all') {
+    result = result.filter(u => u.role === selectedRole)
+  }
+
+  // Status Filter
+  const selectedStatus = statusFilter.value?.value
+  if (selectedStatus && selectedStatus !== 'all') {
+    const isActive = selectedStatus === 'active'
+    result = result.filter(u => u.is_active === isActive)
+  }
+
+// Sort: Current user first
+  const myId = currentUserId.value
+  if (myId) {
+    result.sort((a, b) => {
+      if (a.id === myId) return -1
+      if (b.id === myId) return 1
+      return 0
+    })
+  }
+
+  return result
+})
+
+// Ensure options are reactive and searchable
+const filterRoles = computed(() => roles.value)
+const filterStatus = computed(() => statuses.value)
+
+// Columns with i18n
+const columns = computed(() => [
+  { accessorKey: 'full_name', header: t('users.columns.name') },
+  { accessorKey: 'email', header: t('users.columns.email') },
+  { accessorKey: 'role', header: t('users.columns.role') },
+  { accessorKey: 'is_active', header: t('users.columns.status') },
+  { id: 'actions', header: '' }
+])
 
 async function loadUsers() {
   loading.value = true
@@ -66,53 +89,77 @@ async function loadUsers() {
   loading.value = false
 }
 
-async function handleCreateUser(event: FormSubmitEvent<any>) {
+async function handleSubmit(data: any) {
   saving.value = true
   
-  const { success, error } = await createUser({
-    ...event.data,
-    role: event.data.role
-  })
+  // Clean payload if password empty
+  const payload = { ...data }
+  if (editingUser.value && !payload.password) {
+    delete payload.password
+  }
+
+  let result
+  if (editingUser.value) {
+    result = await updateUserFull(editingUser.value.id, payload)
+  } else {
+    result = await createUser(payload)
+  }
+  
+  const { success, error } = result
   
   if (success) {
-    toast.add({ title: 'Usuario creado', color: 'success' })
-    showModal.value = false
-    formData.email = ''
-    formData.password = ''
-    formData.fullName = ''
-    formData.role = 'cashier'
+    toast.add({ 
+      title: editingUser.value ? t('users.messages.updated') : t('users.messages.created'), 
+      color: 'success' 
+    })
+    closeModal()
     await loadUsers()
   } else {
-    toast.add({ title: 'Error', description: error, color: 'error' })
+    toast.add({ title: t('users.messages.error'), description: error, color: 'error' })
   }
   saving.value = false
+}
+
+function openCreateModal() {
+  editingUser.value = null
+  showModal.value = true
+}
+
+function openEditModal(user: any) {
+  editingUser.value = user
+  showModal.value = true
+}
+
+function closeModal() {
+  showModal.value = false
+  editingUser.value = null
 }
 
 async function toggleUserStatus(row: any) {
   const newState = !row.is_active
   const action = newState ? 'activar' : 'desactivar'
   
-  if (!confirm(`¿Deseas ${action} a este usuario?`)) return
+  if (!confirm(t('users.messages.delete_confirm', { action }))) return
 
   const { success, error } = await updateUserFull(row.id, { is_active: newState })
   
   if (success) {
-    toast.add({ title: `Usuario ${action}do`, color: 'success' })
+    toast.add({ title: t('users.messages.status_changed', { action }), color: 'success' })
     await loadUsers()
   } else {
-    toast.add({ title: 'Error', description: error, color: 'error' })
+    toast.add({ title: t('users.messages.error'), description: error, color: 'error' })
   }
 }
 
 async function handleDeleteUser(id: string) {
-  if (!confirm('¿Estás seguro de eliminar permanentemente? Esta acción no se puede deshacer.')) return
+  if (!confirm(t('users.messages.delete_permanently_confirm'))) return
   
   const { success, error } = await deleteUser(id)
   if (success) {
-    toast.add({ title: 'Usuario eliminado', color: 'success' })
+    toast.add({ title: t('users.messages.deleted'), color: 'success' })
     await loadUsers()
   } else {
-    toast.add({ title: 'Error', description: error, color: 'error' })
+    toast.add({ title: t('users.messages.error'), description: error, color: 'error' })
   }
 }
 
@@ -124,46 +171,81 @@ onMounted(async () => {
 
 <template>
   <div class="space-y-6">
-    <div class="flex justify-end items-center">
-      <UButton 
-        icon="i-heroicons-plus" 
-        color="primary"
-        @click="showModal = true"
-      >
-        Nuevo Usuario
-      </UButton>
-    </div>
+    <PageHeader 
+      :title="t('users.title')"
+      icon="i-heroicons-users"
+      :subtitle="t('users.subtitle')"
+    >
+      <template #actions>
+        <UButton 
+          icon="i-heroicons-plus" 
+          color="primary"
+          @click="openCreateModal"
+        >
+          {{ t('users.buttons.new') }}
+        </UButton>
+      </template>
+    </PageHeader>
+
+    <AppFilters 
+      v-model="search" 
+      :placeholder="t('users.placeholders.search')"
+    >
+       <USelectMenu 
+         v-model="roleFilter"
+         :items="filterRoles"
+         option-attribute="label"
+         value-attribute="value"
+         class="w-40"
+       />
+       <USelectMenu 
+         v-model="statusFilter"
+         :items="filterStatus"
+         option-attribute="label"
+         value-attribute="value"
+         class="w-32"
+       />
+    </AppFilters>
 
     <UCard>
       <UTable 
         :columns="columns" 
-        :data="users" 
+        :data="filteredUsers" 
         :loading="loading"
         class="w-full"
       >
+        <template #full_name-cell="{ row }">
+            <span>{{ row.original.full_name }}</span>
+        </template>
+        
         <template #role-cell="{ row }">
-          <UBadge 
-            :color="getRoleColor(row.original.role) as any" 
-            variant="subtle"
-          >
-            {{ getRoleLabel(row.original.role) }}
-          </UBadge>
+          <StatusBadge 
+            :status="row.original.role" 
+            type="user_role" 
+          />
         </template>
         
         <template #is_active-cell="{ row }">
-          <UBadge 
-            :color="row.original.is_active ? 'success' : 'error'" 
-            variant="solid" 
-            size="xs"
-          >
-            {{ row.original.is_active ? 'Activo' : 'Inactivo' }}
-          </UBadge>
+          <StatusBadge 
+            :status="row.original.is_active ? 'active' : 'inactive'" 
+            type="user" 
+          />
         </template>
         
         <template #actions-cell="{ row }">
-          <div class="flex justify-end gap-2">
+          <div class="flex justify-start gap-2">
+            <UTooltip :text="t('users.buttons.edit')">
+              <UButton 
+                v-if="row.original.role !== 'owner'"
+                icon="i-heroicons-pencil-square"
+                color="primary"
+                variant="ghost" 
+                size="xs"
+                @click="openEditModal(row.original)"
+              />
+            </UTooltip>
             
-            <UTooltip text="Cambiar estado">
+            <UTooltip :text="t('users.buttons.change_status')">
               <UButton 
                 v-if="row.original.role !== 'owner'"
                 :icon="row.original.is_active ? 'i-heroicons-no-symbol' : 'i-heroicons-check-circle'"
@@ -174,7 +256,7 @@ onMounted(async () => {
               />
             </UTooltip>
 
-            <UTooltip text="Eliminar permanentemente" v-if="isOwner && row.original.role !== 'owner'">
+            <UTooltip :text="t('users.buttons.delete_permanently')" v-if="isOwner && row.original.role !== 'owner'">
               <UButton 
                 color="error" 
                 variant="ghost" 
@@ -183,82 +265,31 @@ onMounted(async () => {
                 @click="handleDeleteUser(row.original.id)"
               />
             </UTooltip>
-            
           </div>
+        </template>
+
+        <template #empty>
+          <EmptyState 
+            icon="i-heroicons-users"
+            :message="t('users.messages.empty_state')"
+            :actionText="t('users.buttons.new')"
+            @action="openCreateModal"
+          />
         </template>
       </UTable>
     </UCard>
 
     <UModal 
-      v-model:open="showModal"
-      title="Crear Nuevo Usuario"
-      description="Ingresa los datos del nuevo colaborador"
+      v-model:open="showModal" 
+      :title="editingUser ? t('users.modal.title_edit') : t('users.modal.title_new')"
     >
       <template #body>
-        <UForm 
-          ref="form"
-          :schema="schema"
-          :state="formData"
-          class="space-y-4"
-          @submit="handleCreateUser"
-        >
-          <UFormField label="Nombre Completo" name="fullName">
-            <UInput 
-              v-model="formData.fullName" 
-              icon="i-heroicons-user" 
-              placeholder="Ej. Juan Pérez" 
-              class="w-full"
-            />
-          </UFormField>
-          
-          <UFormField label="Email" name="email">
-            <UInput 
-              v-model="formData.email" 
-              icon="i-heroicons-envelope" 
-              type="email" 
-              placeholder="email@ejemplo.com" 
-              class="w-full"
-            />
-          </UFormField>
-
-          <UFormField label="Contraseña Temporal" name="password">
-            <UInput 
-              v-model="formData.password" 
-              icon="i-heroicons-key" 
-              type="password" 
-              placeholder="Mínimo 6 caracteres" 
-              class="w-full"
-            />
-          </UFormField>
-
-          <UFormField label="Rol" name="role">
-            <USelectMenu 
-              v-model="formData.role" 
-              :items="roles" 
-              value-key="value" 
-              label-key="label"
-              placeholder="Seleccionar rol"
-              class="w-full"
-            />
-          </UFormField>
-
-          <div class="flex justify-end gap-3 mt-6">
-            <UButton 
-              color="neutral" 
-              variant="ghost" 
-              @click="showModal = false"
-            >
-              Cancelar
-            </UButton>
-            <UButton 
-              type="submit" 
-              :loading="saving" 
-              color="primary"
-            >
-              Crear Usuario
-            </UButton>
-          </div>
-        </UForm>
+        <UserForm 
+          :user="editingUser"
+          :loading="saving"
+          @submit="handleSubmit"
+          @cancel="closeModal"
+        />
       </template>
     </UModal>
   </div>

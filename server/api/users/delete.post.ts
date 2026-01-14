@@ -4,14 +4,17 @@ export default defineEventHandler(async (event) => {
     const requesterUser = await serverSupabaseUser(event)
     if (!requesterUser) throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
 
+    const userId = requesterUser.id || requesterUser.sub
+
     const supabaseAdmin = serverSupabaseServiceRole(event) as any
     const body = await readBody(event)
     const { user_id: targetUserId } = body
     const { data: requesterProfile } = await supabaseAdmin
         .from('users')
         .select('role, business_id')
-        .eq('id', requesterUser.id)
+        .eq('id', userId)
         .single()
+
 
     if (!requesterProfile || requesterProfile.role !== 'owner') {
         throw createError({ statusCode: 403, statusMessage: 'Solo el dueño puede eliminar usuarios permanentemente' })
@@ -29,7 +32,7 @@ export default defineEventHandler(async (event) => {
         throw createError({ statusCode: 403, statusMessage: 'No puedes eliminar usuarios de otro negocio' })
     }
 
-    if (targetUserId === requesterUser.id) {
+    if (targetUserId === userId) {
         throw createError({ statusCode: 400, statusMessage: 'No puedes eliminar tu propia cuenta de dueño aquí' })
     }
 

@@ -3,16 +3,23 @@ import * as z from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
 
 definePageMeta({
-  layout: false
+  layout: 'auth'
 })
 
 const { login } = useAuth()
 const toast = useToast()
 const router = useRouter()
+const route = useRoute()
+
+const { t } = useI18n()
 
 const schema = z.object({
-  email: z.string().email('Email inválido'),
-  password: z.string().min(6, 'Mínimo 6 caracteres')
+  email: z.string()
+    .min(1, { message: t('validation.required_field') })
+    .email({ message: t('validation.email_invalid') }),
+  password: z.string()
+    .min(1, { message: t('validation.required_field') })
+    .min(6, { message: t('validation.password_min_length', { min: 6 }) })
 })
 
 type Schema = z.output<typeof schema>
@@ -28,7 +35,6 @@ const loading = ref(false)
 async function onSubmit(event: FormSubmitEvent<Schema>) {
   loading.value = true
   try {
-    // CORRECCIÓN: Se pasa un objeto como espera useAuth
     const result = await login({
         email: event.data.email, 
         password: event.data.password
@@ -42,17 +48,24 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
         attempts++
       }
       
-      toast.add({ title: '¡Bienvenido!', color: 'success' })
-      router.push('/dashboard')
+      const plan = route.query.plan as string
+      
+      if (plan && plan !== 'solo') {
+        toast.add({ title: '¡Bienvenido!', description: 'Redirigiendo al pago...', color: 'success' })
+        router.push('/payment/processing?plan=' + plan)
+      } else {
+        toast.add({ title: '¡Bienvenido!', color: 'success' })
+        router.push('/dashboard')
+      }
     } else {
       toast.add({ 
-        title: 'Error de acceso', 
-        description: result.error || 'Credenciales inválidas', 
+        title: t('auth.access_error'), 
+        description: result.error || t('auth.invalid_credentials'), 
         color: 'error' 
       })
     }
   } catch (error) {
-    toast.add({ title: 'Error', description: 'Ocurrió un error inesperado', color: 'error' })
+    toast.add({ title: t('cash_register.toasts.error_title'), description: t('generic.error_unexpected'), color: 'error' })
   } finally {
     loading.value = false
   }
@@ -61,22 +74,22 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
 const providers = [{
   label: 'Google',
   icon: 'i-simple-icons-google',
-  click: () => { toast.add({ title: 'Google', description: 'Próximamente', color: 'neutral' }) }
+  click: () => { toast.add({ title: 'Google', description: t('auth.provider_soon'), color: 'neutral' }) }
 }, {
   label: 'GitHub',
   icon: 'i-simple-icons-github',
-  click: () => { toast.add({ title: 'GitHub', description: 'Próximamente', color: 'neutral' }) }
+  click: () => { toast.add({ title: 'GitHub', description: t('auth.provider_soon'), color: 'neutral' }) }
 }]
 </script>
 
 <template>
-  <div class="flex flex-col items-center justify-center min-h-screen bg-neutral-50 dark:bg-neutral-950 p-4">
+  <div class="flex-1 flex flex-col items-center justify-center bg-neutral-50 dark:bg-neutral-950 p-4">
     <UCard class="w-full max-w-sm">
       <template #header>
         <div class="text-center">
           <UIcon name="i-heroicons-lock-closed" class="w-8 h-8 text-primary-500 mb-2" />
-          <h1 class="text-xl font-bold text-gray-900 dark:text-white">Bienvenido</h1>
-          <p class="text-sm text-gray-500 mt-1">Ingresa a tu cuenta para continuar</p>
+          <h1 class="text-xl font-bold text-gray-900 dark:text-white">{{ $t('login.title') }}</h1>
+          <p class="text-sm text-gray-500 mt-1">{{ $t('login.subtitle') }}</p>
         </div>
       </template>
 
@@ -99,39 +112,39 @@ const providers = [{
             <span class="w-full border-t border-gray-300 dark:border-gray-700" />
           </div>
           <div class="relative flex justify-center text-xs uppercase">
-            <span class="bg-white dark:bg-gray-900 px-2 text-gray-500">O continúa con tu correo</span>
+            <span class="bg-white dark:bg-gray-900 px-2 text-gray-500">{{ $t('login.divider') }}</span>
           </div>
         </div>
 
         <UForm :schema="schema" :state="state" class="space-y-4" @submit="onSubmit">
-          <UFormField label="Correo electrónico" name="email">
-            <UInput v-model="state.email" icon="i-heroicons-envelope" placeholder="Ingresa tu correo electrónico" class="w-full" />
+          <UFormField :label="$t('register.labels.email')" name="email">
+            <UInput v-model="state.email" icon="i-heroicons-envelope" :placeholder="$t('register.labels.email_placeholder')" class="w-full" />
           </UFormField>
 
-          <UFormField label="Contraseña" name="password">
+          <UFormField :label="$t('register.labels.password')" name="password">
             <template #hint>
               <ULink to="/forgot-password" class="text-xs text-primary-500 hover:text-primary-600">
-                ¿Olvidaste tu contraseña?
+                {{ $t('login.forgot_password') }}
               </ULink>
             </template>
-            <UInput v-model="state.password" type="password" icon="i-heroicons-key" placeholder="••••••••" class="w-full" />
+            <UInput v-model="state.password" type="password" icon="i-heroicons-key" :placeholder="$t('register.labels.password_placeholder')" class="w-full" />
           </UFormField>
 
           <div class="flex items-center justify-between">
-            <UCheckbox v-model="state.remember" label="Recordarme" />
+            <UCheckbox v-model="state.remember" :label="$t('login.remember_me')" />
           </div>
 
           <UButton type="submit" block :loading="loading" color="primary">
-            Iniciar Sesión
+            {{ $t('login.submit') }}
           </UButton>
         </UForm>
       </div>
 
       <template #footer>
         <p class="text-sm text-center text-gray-500">
-          ¿No tienes cuenta?
+          {{ $t('login.no_account') }}
           <ULink to="/register" class="font-medium text-primary-500 hover:text-primary-600">
-            Regístrate
+            {{ $t('login.register_link') }}
           </ULink>
         </p>
       </template>

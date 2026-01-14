@@ -1,5 +1,5 @@
 {
-  "name": "Lumen",
+  "name": "lumen",
   "type": "module",
   "private": true,
   "scripts": {
@@ -7,17 +7,27 @@
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
-    "postinstall": "nuxt prepare"
+    "postinstall": "nuxt prepare",
+    "prepare": "husky install",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write ."
   },
   "dependencies": {
     "@heroicons/vue": "^2.2.0",
     "@nuxt/ui": "^4.3.0",
     "@nuxtjs/supabase": "^2.0.3",
+    "@pinia-plugin-persistedstate/nuxt": "^1.2.1",
     "@pinia/nuxt": "^0.11.3",
     "@stripe/stripe-js": "^8.6.1",
     "@supabase/supabase-js": "^2.90.1",
     "date-fns": "^4.1.0",
     "nuxt": "^4.2.2",
+    "pinia": "^3.0.4",
+    "pinia-plugin-persistedstate": "^4.7.1",
     "postgres": "^3.4.8",
     "stripe": "^20.1.2",
     "vue": "^3.5.26",
@@ -26,6 +36,20 @@
   },
   "devDependencies": {
     "@iconify-json/heroicons": "^1.2.3",
-    "@iconify-json/simple-icons": "^1.2.65"
+    "@iconify-json/simple-icons": "^1.2.65",
+    "@nuxt/eslint": "^1.12.1",
+    "@nuxtjs/i18n": "^10.2.1",
+    "@typescript-eslint/eslint-plugin": "^8.53.0",
+    "@typescript-eslint/parser": "^8.53.0",
+    "@vitest/ui": "^4.0.17",
+    "@vue/test-utils": "^2.4.6",
+    "eslint": "^9.39.2",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-vue": "^10.6.2",
+    "happy-dom": "^20.1.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
+    "prettier": "^3.7.4",
+    "vitest": "^4.0.17"
   }
 }

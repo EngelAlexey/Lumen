@@ -1,0 +1,595 @@
+{
+    "validation": {
+        "email_invalid": "Correo electrónico inválido",
+        "password_min_length": "La contraseña debe tener al menos {min} caracteres",
+        "passwords_dont_match": "Las contraseñas no coinciden",
+        "name_too_short": "El nombre es muy corto",
+        "required_field": "Este campo es requerido",
+        "invalid_type": "Tipo de dato inválido"
+    },
+    "auth": {
+        "login_success": "Inicio de sesión exitoso",
+        "login_error": "Credenciales incorrectas",
+        "register_success": "Registro exitoso. Por favor verifica tu correo.",
+        "register_error": "Error al registrar la cuenta",
+        "email_already_registered": "Este correo ya está registrado. Por favor inicia sesión.",
+        "invalid_credentials": "Credenciales inválidas",
+        "welcome": "¡Bienvenido!",
+        "access_error": "Error de acceso",
+        "provider_soon": "Próximamente",
+        "logout": "Cerrar Sesión"
+    },
+    "generic": {
+        "error_unexpected": "Ha ocurrido un error inesperado",
+        "success": "Operación exitosa"
+    },
+    "register": {
+        "title": "Crear Cuenta",
+        "subtitle": "Optimiza tu negocio con tecnología moderna",
+        "steps": {
+            "account": "Cuenta",
+            "business": "Negocio",
+            "personal": "Personal"
+        },
+        "labels": {
+            "email": "Correo electrónico",
+            "email_placeholder": "Ingresa tu correo electrónico",
+            "password": "Contraseña",
+            "password_placeholder": "••••••••",
+            "confirm_password": "Confirmar Contraseña",
+            "business_name": "Nombre de tu negocio",
+            "business_name_placeholder": "Ej. Mi Tienda",
+            "category": "Categoría",
+            "phone": "Teléfono",
+            "phone_placeholder": "8888-8888",
+            "address": "Dirección",
+            "address_placeholder": "San José",
+            "full_name": "Tu Nombre Completo",
+            "full_name_placeholder": "Nombre completo"
+        },
+        "buttons": {
+            "continue": "Continuar",
+            "back": "Atrás",
+            "finish": "Finalizar Registro",
+            "login_link": "Inicia Sesión",
+            "has_account": "¿Ya tienes cuenta?"
+        },
+        "info": {
+            "almost_done": "¡Casi terminamos!",
+            "admin_account": "Estás creando una cuenta administrativa para {business}."
+        }
+    },
+    "cash_register": {
+        "title": "Control de Caja",
+        "toasts": {
+            "opened_title": "Caja Aperturada",
+            "opened_desc": "Puedes comenzar a vender",
+            "error_title": "Error",
+            "closed_title": "Caja Cerrada",
+            "closed_desc": "Turno finalizado. {diffText}"
+        },
+        "diff": {
+            "none": "Sin diferencia",
+            "surplus": "Sobrante: ₡{amount}",
+            "shortage": "Faltante: ₡{amount}"
+        },
+        "status": {
+            "closed_title": "La caja está cerrada",
+            "closed_desc": "Debes abrir caja para comenzar a realizar ventas.",
+            "current_status": "Estado Actual",
+            "open": "Abierta",
+            "started_at": "Iniciada:",
+            "opening_amount": "Monto Inicial"
+        },
+        "actions": {
+            "open": "Abrir Caja",
+            "close": "Cerrar Caja",
+            "go_to_sales": "Ir a Ventas",
+            "cancel": "Cancelar",
+            "confirm_open": "Abrir Turno",
+            "confirm_close": "Confirmar Cierre"
+        },
+        "modals": {
+            "open_title": "Apertura de Caja",
+            "open_desc": "Ingresa el monto de efectivo inicial en la caja.",
+            "close_title": "Cierre de Caja"
+        },
+        "alerts": {
+            "irreversible_title": "Acción Irreversible",
+            "irreversible_desc": "Al cerrar caja se generará el reporte final del turno."
+        },
+        "summary": {
+            "title": "Resumen del Turno",
+            "opening": "Apertura:",
+            "total_sales": "Ventas Totales:",
+            "cash": "Efectivo:",
+            "card": "Tarjeta:",
+            "transfer": "Transferencia:",
+            "online": "Stripe / Online:",
+            "other": "Otros:",
+            "expected_total": "Total Caja Esperado:"
+        },
+        "labels": {
+            "notes": "Notas / Observaciones"
+        },
+        "placeholders": {
+            "notes": "Diferencias, novedades..."
+        }
+    },
+    "login": {
+        "title": "Bienvenido",
+        "subtitle": "Ingresa a tu cuenta para continuar",
+        "divider": "O continúa con tu correo",
+        "forgot_password": "¿Olvidaste tu contraseña?",
+        "remember_me": "Recordarme",
+        "submit": "Iniciar Sesión",
+        "no_account": "¿No tienes cuenta?",
+        "register_link": "Regístrate",
+        "send_recovery_link": "Enviar enlace de recuperación",
+        "recovery_sent_title": "Correo enviado",
+        "recovery_sent_desc": "Revisa tu bandeja de entrada para restablecer tu contraseña.",
+        "back_to_login": "Volver al inicio de sesión"
+    },
+    "landing": {
+        "nav": {
+            "login": "Iniciar Sesión",
+            "start": "Comenzar Gratis"
+        },
+        "hero": {
+            "title_prefix": "Control total para tu",
+            "title_highlight": "Negocio",
+            "subtitle": "Gestiona ventas, inventario y personal en una sola plataforma. Diseñada para crecer contigo.",
+            "cta_primary": "Empieza tu prueba gratis",
+            "cta_secondary": "Ir al Dashboard"
+        },
+        "features": {
+            "pos_title": "Punto de Venta",
+            "pos_desc": "Registra ventas en segundos, acepta múltiples métodos de pago y mantén tu caja cuadrada siempre.",
+            "reports_title": "Reportes en Vivo",
+            "reports_desc": "Toma decisiones basadas en datos reales. Conoce tus productos más vendidos y tus horas pico.",
+            "team_title": "Gestión de Equipo",
+            "team_desc": "Asigna roles, controla permisos y monitorea el rendimiento de tu personal fácilmente."
+        },
+        "footer": "© {year} Lumen Platform. Todos los derechos reservados."
+    },
+    "dashboard": {
+        "welcome_msg": "Hola, {name}",
+        "welcome_subtitle": "Esto es lo que está pasando en tu negocio hoy.",
+        "stats": {
+            "sales_today": "Ventas Hoy",
+            "transactions": "Transacciones",
+            "pending": "Pendientes",
+            "cash_in_register": "Efectivo en Caja",
+            "vs_yesterday": "{value} vs ayer",
+            "delivered_count": "{count} entregados",
+            "since_opening": "Desde apertura"
+        },
+        "sections": {
+            "recent_transactions": "Transacciones Recientes",
+            "quick_actions": "Acciones Rápidas"
+        },
+        "empty": {
+            "no_transactions": "No hay transacciones aún",
+            "create_first": "Crear Primera Transacción"
+        },
+        "actions": {
+            "new_sale": "Nueva Venta",
+            "open_register": "Abrir Caja",
+            "view_reports": "Ver Reportes",
+            "products": "Productos"
+        },
+        "transactions": {
+            "general_customer": "Cliente general",
+            "status": {
+                "paid": "Pagado",
+                "delivered": "Entregado",
+                "pending": "Pendiente",
+                "cancelled": "Cancelado"
+            }
+        }
+    },
+    "pricing": {
+        "title": "Planes y Precios",
+        "subtitle": "Elige el plan que mejor se adapte a tu negocio",
+        "most_popular": "MÁS POPULAR",
+        "per_month": "/ mes",
+        "includes_trial": "Incluye 14 días de prueba gratis",
+        "trial_days": "14 días",
+        "contact_support": "Contactar Soporte",
+        "errors": {
+            "payment_title": "Error de Pago",
+            "payment_desc": "No se pudo procesar la solicitud. Intenta de nuevo."
+        },
+        "plans": {
+            "solo": {
+                "name": "Solo",
+                "description": "Para emprendedores que inician",
+                "button": "Comenzar Gratis",
+                "features": {
+                    "admin": "1 Usuario Administrador",
+                    "sales": "Punto de Venta Básico",
+                    "inventory": "Control de Inventario",
+                    "reports": "Reportes Básicos",
+                    "support": "Soporte por Email"
+                }
+            },
+            "startup": {
+                "name": "Startup",
+                "description": "Para negocios en crecimiento",
+                "button": "Comenzar Prueba",
+                "features": {
+                    "users": "3 Usuarios",
+                    "audit": "Auditoría de Caja",
+                    "cash": "Control de Efectivo Avanzado",
+                    "crm": "CRM Básico",
+                    "support": "Soporte Prioritario",
+                    "integration": "Integración Stripe"
+                }
+            },
+            "organization": {
+                "name": "Organización",
+                "description": "Para grandes operaciones",
+                "button": "Contactar Ventas",
+                "features": {
+                    "users": "Usuarios Ilimitados",
+                    "branches": "Multi-sucursal",
+                    "api": "API Access",
+                    "reports": "Reportes Avanzados",
+                    "manager": "Roles Personalizados",
+                    "sla": "SLA Garantizado"
+                }
+            }
+        }
+    },
+    "customers": {
+        "title": "Clientes",
+        "buttons": {
+            "new": "Nuevo Cliente",
+            "edit": "Editar",
+            "delete": "Eliminar",
+            "save": "Guardar",
+            "cancel": "Cancelar"
+        },
+        "columns": {
+            "full_name": "Nombre",
+            "phone": "Teléfono",
+            "email": "Correo",
+            "address": "Dirección",
+            "actions": "Acciones"
+        },
+        "placeholders": {
+            "search": "Buscar cliente..."
+        },
+        "messages": {
+            "created": "Cliente creado",
+            "updated": "Cliente actualizado",
+            "deleted": "Cliente eliminado",
+            "delete_confirm": "¿Estás seguro de eliminar a este cliente?",
+            "error": "Error",
+            "empty_state": "No hay clientes registrados"
+        },
+        "modal": {
+            "title_new": "Nuevo Cliente",
+            "title_edit": "Editar Cliente"
+        },
+        "form": {
+            "labels": {
+                "full_name": "Nombre Completo",
+                "phone": "Teléfono",
+                "email": "Correo Electrónico",
+                "address": "Dirección",
+                "notes": "Notas Adicionales"
+            },
+            "placeholders": {
+                "full_name": "Ej. Juan Pérez",
+                "phone": "Ej. 8888-8888",
+                "email": "cliente@ejemplo.com",
+                "address": "Dirección de entrega",
+                "notes": "Preferencias, notas importantes..."
+            },
+            "validation": {
+                "name_required": "El nombre es obligatorio",
+                "email_invalid": "Correo inválido"
+            },
+            "buttons": {
+                "save_changes": "Guardar Cambios",
+                "create": "Crear Cliente"
+            }
+        }
+    },
+    "products": {
+        "title": "Productos",
+        "subtitle": "Modo: {mode}",
+        "stock_active": "Control de Stock activo",
+        "buttons": {
+            "new": "Nuevo Producto",
+            "new_service": "Nuevo Servicio",
+            "new_dish": "Nuevo Platillo",
+            "edit": "Editar",
+            "delete": "Eliminar",
+            "save": "Guardar",
+            "cancel": "Cancelar",
+            "quick_add": "Agregar",
+            "quick_subtract": "Quitar"
+        },
+        "columns": {
+            "name": "Producto/Servicio",
+            "sku": "Código",
+            "category": "Categoría",
+            "price": "Precio",
+            "cost": "Costo",
+            "stock": "Stock",
+            "expiration": "Vence",
+            "size": "Talla",
+            "duration": "Minutos",
+            "actions": "Acciones"
+        },
+        "categories": {
+            "general": "General",
+            "services": "Servicios",
+            "beverages": "Bebidas",
+            "foods": "Alimentos",
+            "personal_care": "Cuidado Personal",
+            "electronics": "Electrónica",
+            "clothing": "Ropa",
+            "medicines": "Medicamentos"
+        },
+        "sector_fields": {
+            "duration_minutes": "Duración (min)",
+            "technician_name": "Técnico/Encargado",
+            "requires_appointment": "Requiere Cita",
+            "warranty_period": "Garantía (días)",
+            "brand": "Marca",
+            "model": "Modelo",
+            "min_stock": "Stock Mínimo",
+            "is_vegan": "Vegano",
+            "is_gluten_free": "Sin Gluten",
+            "is_spicy": "Picante",
+            "preparation_time": "Tiempo Prep. (min)",
+            "expiration_date": "Vencimiento",
+            "batch_number": "Lote",
+            "laboratory": "Laboratorio",
+            "prescription_required": "Requiere Receta",
+            "size": "Talla",
+            "color": "Color",
+            "material": "Material"
+        },
+        "messages": {
+            "created": "Producto creado",
+            "updated": "Producto actualizado",
+            "deleted": "Eliminado",
+            "delete_confirm": "¿Estás seguro de eliminar este ítem?",
+            "stock_updated": "Stock actualizado",
+            "error": "Error",
+            "empty_state": "No hay productos registrados",
+            "image_uploaded": "Imagen subida correctamente",
+            "image_upload_error": "Error al subir imagen"
+        },
+        "modal": {
+            "title_new": "Nuevo Producto",
+            "title_edit": "Editar Producto",
+            "section_basic": "Datos Básicos",
+            "section_specific": "Detalles Específicos"
+        },
+        "form": {
+            "labels": {
+                "name": "Nombre",
+                "price": "Precio",
+                "cost": "Costo",
+                "stock": "Stock",
+                "sku": "Código/SKU",
+                "category": "Categoría",
+                "description": "Descripción",
+                "image": "Imagen del Producto"
+            },
+            "placeholders": {
+                "name": "Ej. Coca Cola 2.5L",
+                "name_service": "Ej. Mantenimiento Preventivo",
+                "price": "0.00",
+                "sku": "Código opcional",
+                "description": "Descripción opcional..."
+            },
+            "validation": {
+                "name_required": "Nombre requerido",
+                "name_min": "Mínimo 2 caracteres"
+            }
+        }
+    },
+    "users": {
+        "title": "Gestión de Usuarios",
+        "subtitle": "Administra los colaboradores del negocio",
+        "buttons": {
+            "new": "Nuevo Usuario",
+            "edit": "Editar",
+            "delete": "Eliminar",
+            "change_status": "Cambiar estado",
+            "delete_permanently": "Eliminar permanentemente"
+        },
+        "columns": {
+            "name": "Nombre",
+            "email": "Correo",
+            "role": "Rol",
+            "status": "Estado",
+            "created_at": "Creado",
+            "actions": "Acciones"
+        },
+        "roles": {
+            "owner": "Propietario",
+            "admin": "Administrador",
+            "employee": "Empleado",
+            "all": "Todos los roles"
+        },
+        "status": {
+            "active": "Activo",
+            "inactive": "Inactivo",
+            "all": "Todos los estados"
+        },
+        "filters": {
+            "role": "Filtrar por rol",
+            "status": "Filtrar por estado"
+        },
+        "placeholders": {
+            "search": "Buscar usuario..."
+        },
+        "messages": {
+            "created": "Usuario creado",
+            "updated": "Usuario actualizado",
+            "status_changed": "Usuario {action}do",
+            "deleted": "Usuario eliminado",
+            "delete_confirm": "¿Deseas {action} a este usuario?",
+            "delete_permanently_confirm": "¿Estás seguro de eliminar permanentemente? Esta acción no se puede deshacer.",
+            "error": "Error",
+            "empty_state": "No hay usuarios registrados"
+        },
+        "modal": {
+            "title_new": "Crear Nuevo Usuario",
+            "title_edit": "Editar Usuario",
+            "subtitle_edit": "Modifica los datos del colaborador"
+        },
+        "form": {
+            "labels": {
+                "full_name": "Nombre Completo",
+                "email": "Correo Electrónico",
+                "password": "Contraseña",
+                "role": "Rol",
+                "status": "Estado"
+            },
+            "placeholders": {
+                "full_name": "Nombre del colaborador",
+                "email": "correo@ejemplo.com",
+                "password": "Mínimo 6 caracteres"
+            },
+            "validation": {
+                "name_required": "El nombre es obligatorio",
+                "email_required": "El email es obligatorio",
+                "email_invalid": "Email inválido",
+                "password_required": "La contraseña es obligatoria",
+                "password_min": "Mínimo 6 caracteres"
+            }
+        }
+    },
+    "transactions": {
+        "title": "Historial de Ventas",
+        "subtitle": "Gestiona todas las transacciones del negocio",
+        "buttons": {
+            "new": "Nueva Venta",
+            "view": "Ver",
+            "pay": "Cobrar",
+            "change_status": "Cambiar Estado",
+            "process_payment": "Procesar Pago",
+            "cancel": "Cancelar"
+        },
+        "columns": {
+            "id": "ID",
+            "customer": "Cliente",
+            "items": "Items",
+            "total": "Total",
+            "payment": "Pago",
+            "delivery": "Entrega",
+            "status": "Estado",
+            "date": "Fecha",
+            "actions": "Acciones"
+        },
+        "status": {
+            "pending": "Pendiente",
+            "paid": "Pagado",
+            "delivered": "Entregado",
+            "cancelled": "Cancelado",
+            "all": "Todos los estados"
+        },
+        "delivery_status": {
+            "pending": "Pendiente",
+            "preparing": "Preparando",
+            "ready": "Listo",
+            "in_route": "En Ruta",
+            "delivered": "Entregado",
+            "cancelled": "Cancelado"
+        },
+        "payment_methods": {
+            "cash": "Efectivo",
+            "card": "Tarjeta",
+            "stripe": "Stripe (Online)",
+            "transfer": "Transferencia",
+            "other": "Otro"
+        },
+        "filters": {
+            "status": "Filtrar por estado",
+            "search": "Buscar por cliente o ID..."
+        },
+        "summary": {
+            "total_sales": "Ventas Totales",
+            "pending_transactions": "Transacciones Pendientes",
+            "average_ticket": "Ticket Promedio",
+            "products_sold": "Productos Vendidos"
+        },
+        "messages": {
+            "created": "Venta creada",
+            "updated": "Venta actualizada",
+            "paid": "Pago registrado",
+            "status_changed": "Estado actualizado",
+            "cancelled": "Venta cancelada",
+            "error": "Error",
+            "empty_state": "No hay transacciones registradas",
+            "payment_required": "Debes ingresar un monto",
+            "payment_exceeds": "El pago excede el total"
+        },
+        "modal": {
+            "title_pay": "Cobrar Cuenta",
+            "title_status": "Cambiar Estado de Entrega",
+            "subtitle_pay": "Registra el pago de esta transacción",
+            "amount_due": "Monto a pagar",
+            "amount_paid": "Monto pagado",
+            "payment_method": "Método de pago",
+            "delivery_status": "Estado de entrega",
+            "notes": "Notas adicionales"
+        },
+        "placeholders": {
+            "amount": "0.00",
+            "notes": "Notas opcionales..."
+        }
+    },
+    "common": {
+        "buttons": {
+            "save": "Guardar",
+            "cancel": "Cancelar",
+            "edit": "Editar",
+            "delete": "Eliminar",
+            "create": "Crear",
+            "new": "Nuevo",
+            "search": "Buscar",
+            "filter": "Filtrar",
+            "close": "Cerrar",
+            "confirm": "Confirmar",
+            "back": "Volver"
+        },
+        "actions": {
+            "view_all": "Ver todas",
+            "refresh": "Actualizar"
+        },
+        "messages": {
+            "loading": "Cargando...",
+            "no_data": "No hay datos",
+            "error": "Error",
+            "success": "Éxito",
+            "created": "{item} creado",
+            "updated": "{item} actualizado",
+            "deleted": "{item} eliminado",
+            "delete_confirm": "¿Estás seguro de eliminar este {item}?"
+        },
+        "payment_methods": {
+            "cash": "Efectivo",
+            "card": "Tarjeta",
+            "stripe": "Stripe (Online)",
+            "transfer": "Transferencia",
+            "other": "Otro"
+        },
+        "delivery_status": {
+            "pending": "Pendiente",
+            "preparing": "Preparando",
+            "ready": "Listo",
+            "in_route": "En Ruta",
+            "delivered": "Entregado",
+            "cancelled": "Cancelado"
+        }
+    }
+}

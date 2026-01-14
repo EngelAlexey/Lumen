@@ -3,16 +3,14 @@ definePageMeta({
   layout: false
 })
 
-// Auto-close window after 3 seconds
 onMounted(() => {
   setTimeout(() => {
     window.close()
-    // If window.close() doesn't work (blocked by browser), redirect
     if (!window.closed) {
       window.location.href = 'about:blank'
     }
   }, 3000)
-})
+})  
 </script>
 
 <template>

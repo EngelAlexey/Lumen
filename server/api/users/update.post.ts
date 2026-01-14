@@ -4,6 +4,8 @@ export default defineEventHandler(async (event) => {
     const requesterUser = await serverSupabaseUser(event)
     if (!requesterUser) throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
 
+    const userId = requesterUser.id || requesterUser.sub
+
     const supabaseAdmin = serverSupabaseServiceRole(event) as any
     const body = await readBody(event)
 
@@ -12,7 +14,7 @@ export default defineEventHandler(async (event) => {
     const { data: requesterProfile } = await supabaseAdmin
         .from('users')
         .select('role, business_id')
-        .eq('id', requesterUser.id)
+        .eq('id', userId)
         .single()
 
     if (!requesterProfile) throw createError({ statusCode: 403, statusMessage: 'Perfil inválido' })

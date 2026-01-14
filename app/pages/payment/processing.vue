@@ -15,10 +15,27 @@
 <script setup lang="ts">
 const route = useRoute()
 const router = useRouter()
+const user = useSupabaseUser()
 const toast = useToast()
 
 onMounted(async () => {
+  let attempts = 0
+  while (!user.value && attempts < 10) {
+    await new Promise(resolve => setTimeout(resolve, 200))
+    attempts++
+  }
+  
   const plan = route.query.plan as string
+  let targetUserId = user.value?.id
+
+  if (!targetUserId && route.query.userId) {
+      targetUserId = route.query.userId as string
+  }
+
+  if (!targetUserId) {
+    router.push('/login')
+    return
+  }
   
   if (!plan) {
     router.push('/pricing')
@@ -26,19 +43,32 @@ onMounted(async () => {
   }
 
   try {
-    const response = await $fetch('/api/stripe/create-checkout', {
+    const response = await $fetch<any>('/api/payments/create-subscription', {
         method: 'POST',
-        body: { plan }
+        body: { 
+            userId: targetUserId,
+            plan: plan,
+            priceId: plan === 'startup' ? 29 : 89 
+        }
     })
     
     if (response.url) {
         window.location.href = response.url
+    } else if (response.id) {
+        const checkoutUrl = `https://checkout.onvopay.com/pay/${response.id}`
+        window.location.href = checkoutUrl
+    } else if (response.success) {
+        toast.add({ title: 'Suscripción activada', color: 'success' })
+        router.push('/')
     } else {
         throw new Error('No se recibió URL de pago')
     }
-  } catch (error) {
-    console.error(error)
-    toast.add({ title: 'Error', description: 'No pudimos iniciar el pago. Intenta nuevamente.', color: 'error' })
+  } catch (error: any) {
+    toast.add({ 
+        title: 'Error', 
+        description: error.message || 'No pudimos iniciar el pago.', 
+        color: 'error' 
+    })
     router.push('/pricing')
   }
 })

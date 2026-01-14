@@ -53,12 +53,6 @@ export default defineEventHandler(async (event) => {
         // 2. Retrieve Session from Stripe
         const session = await stripe.checkout.sessions.retrieve(transaction.stripe_checkout_session_id)
 
-        console.log('Verify Payment Session:', {
-            id: session.id,
-            payment_status: session.payment_status,
-            status: session.status
-        })
-
         // 3. Update DB if paid
         if (session.payment_status === 'paid') {
             // Use Service Role to bypass RLS for updates if needed, though Client might have permissions.
@@ -76,7 +70,6 @@ export default defineEventHandler(async (event) => {
                 .eq('id', transactionId)
 
             if (updateError) {
-                console.error('Failed to update verified transaction:', updateError)
                 throw createError({ statusCode: 500, message: 'DB Update Failed' })
             }
 
@@ -86,7 +79,6 @@ export default defineEventHandler(async (event) => {
         return { success: false, status: session.payment_status }
 
     } catch (error: any) {
-        console.error('Stripe Verification Error:', error)
         throw createError({ statusCode: 500, message: error.message })
     }
 })

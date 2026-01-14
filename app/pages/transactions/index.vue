@@ -1,57 +1,42 @@
 <script setup lang="ts">
 import type { Transaction } from '~/types/database.types'
+import PageHeader from '@/components/common/PageHeader.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
+import StatusBadge from '@/components/common/StatusBadge.vue'
 
+import { formatCurrency, formatDateTime, formatPaymentMethod } from '@/utils/formatters'
+
+const { t } = useI18n()
 const { getTodayTransactions, getTransactions, payTransaction, updateTransactionStatus, fetchPaymentMethods, loading, paymentMethods } = useTransactions()
+const { transactionStatusOptions, getTransactionStatusLabel, getDeliveryStatusLabel, getPaymentMethodLabel } = useOptions()
 const toast = useToast()
 
 const transactions = ref<Transaction[]>([])
-const statusFilter = ref<string | null>(null)
+const statusFilter = ref<'pending' | 'paid' | 'delivered' | 'cancelled' | null>(null)
 const expandedRow = ref<string | null>(null)
 
-// Modal para cobrar pendientes
-const showPayModal = ref(false)
+const showPayModal = ref(false) 
 const selectedTransaction = ref<any>(null)
 const selectedPaymentMethod = ref<string | null>(null)
 const paymentReference = ref('')
 
-// Modal para cambiar estado
 const showStatusModal = ref(false)
 const newStatus = ref<string | null>(null)
 
-const statusOptions = [
-  { label: 'Todos', value: null },
-  { label: 'Pagado', value: 'paid' },
-  { label: 'Pendiente', value: 'pending' },
-  { label: 'Entregado', value: 'delivered' },
-  { label: 'Cancelado', value: 'cancelled' }
-]
+// Use transactionStatusOptions directly from useOptions
+const statusOptions = transactionStatusOptions
 
-const statusColors: Record<string, 'warning' | 'info' | 'success' | 'error' | 'primary' | 'secondary' | 'neutral'> = {
-  pending: 'warning',
-  delivered: 'info',
-  paid: 'success',
-  cancelled: 'error'
-}
-
-const statusLabels: Record<string, string> = {
-  pending: 'Pendiente',
-  delivered: 'Entregado',
-  paid: 'Pagado',
-  cancelled: 'Cancelado'
-}
-
-const columns = [
+const columns = computed(() => [
   { accessorKey: 'transaction_number', header: 'Folio' },
-  { accessorKey: 'created_at', header: 'Hora' },
+  { accessorKey: 'created_at', header: t('transactions.columns.date') },
   { accessorKey: 'quantity', header: 'Cant.' },
-  { accessorKey: 'products', header: 'Productos' },
-  { accessorKey: 'total', header: 'Total' },
-  { accessorKey: 'status', header: 'Estado' },
-  { accessorKey: 'payment_methods', header: 'Método' },
+  { accessorKey: 'products', header: t('transactions.columns.items') },
+  { accessorKey: 'total', header: t('transactions.columns.total') },
+  { accessorKey: 'status', header: t('transactions.columns.status') },
+  { accessorKey: 'payment_methods', header: t('transactions.columns.payment') },
   { id: 'actions', header: '' }
-]
+])
 
-// Today's summary
 const summary = computed(() => {
   const paid = transactions.value.filter(t => t.status === 'paid')
   const pending = transactions.value.filter(t => t.status === 'pending')
@@ -93,7 +78,11 @@ function openStatusModal(transaction: any) {
 
 async function processPayment() {
   if (!selectedTransaction.value || !selectedPaymentMethod.value) {
-    toast.add({ title: 'Error', description: 'Selecciona un método de pago', color: 'error' })
+    toast.add({ 
+      title: t('transactions.messages.error'), 
+      description: t('transactions.messages.payment_required'), 
+      color: 'error' 
+    })
     return
   }
 
@@ -103,25 +92,39 @@ async function processPayment() {
   })
 
   if (result.success) {
-    toast.add({ title: 'Éxito', description: 'Cuenta cobrada correctamente', color: 'success' })
+    toast.add({ 
+      title: t('transactions.messages.paid'), 
+      color: 'success' 
+    })
     showPayModal.value = false
     loadTransactions()
   } else {
-    toast.add({ title: 'Error', description: result.error, color: 'error' })
+    toast.add({ 
+      title: t('transactions.messages.error'), 
+      description: result.error, 
+      color: 'error' 
+    })
   }
 }
 
-async function changeStatus() {
+async function updateStatus() {
   if (!selectedTransaction.value || !newStatus.value) return
-  
+
   const result = await updateTransactionStatus(selectedTransaction.value.id, newStatus.value as any)
-  
+
   if (result.success) {
-    toast.add({ title: 'Estado actualizado', color: 'success' })
+    toast.add({ 
+      title: t('transactions.messages.status_changed'), 
+      color: 'success' 
+    })
     showStatusModal.value = false
     loadTransactions()
   } else {
-    toast.add({ title: 'Error', description: result.error, color: 'error' })
+    toast.add({ 
+      title: t('transactions.messages.error'), 
+      description: result.error, 
+      color: 'error' 
+    })
   }
 }
 
@@ -139,27 +142,12 @@ function getProductNames(items: any[]): string {
 
 function formatPaymentEnum(method: string | null) {
     if (!method) return '-'
-    const map: Record<string, string> = {
-        'cash': 'Efectivo',
-        'card_manual': 'Tarjeta',
-        'stripe_checkout': 'Stripe (Online)',
-        'transfer': 'Transferencia',
-        'other': 'Otro'
-    }
-    return map[method] || method
+    return getPaymentMethodLabel(method)
 }
 
 function formatDeliveryStatus(status: string | null) {
     if (!status) return ''
-    const map: Record<string, string> = {
-        'pending': 'Pendiente',
-        'preparing': 'Preparando',
-        'ready': 'Listo',
-        'in_route': 'En Ruta',
-        'delivered': 'Entregado',
-        'cancelled': 'Cancelado'
-    }
-    return map[status] || status
+    return getDeliveryStatusLabel(status)
 }
 
 watch(statusFilter, () => loadTransactions())
@@ -183,23 +171,29 @@ const { copy } = useClipboard()
 
 function copyActiveLink() {
     copy(activeStripeLink.value)
+    toast.add({ title: 'Copiado', color: 'success' })
 }
 
-onMounted(async () => {
-  loadTransactions()
-  fetchPaymentMethods()
-  
-  // Ensure profile is loaded
-  if (!profile.value) {
-      console.log('[Transactions] Profile missing, fetching...')
-      await fetchProfile()
-  }
-  // Setup Realtime Watcher
-  watch(() => profile.value, () => {
-    // We subscribe globally to the transactions table.
-    // Supabase RLS policies will ensure the user only receives events for their own business.
+// async function generatePaymentLink(transaction: any) {
+//     if (!transaction) return
+//     
+//     const result = await createStripePayment(transaction.id)
+//     
+//     if (result.success && result.url) {
+//         toast.add({ title: 'Link Generado', description: 'El link de pago ha sido creado exitosamente.', color: 'success' })
+//         loadTransactions()
+//     } else {
+//         toast.add({ title: 'Error', description: result.error || 'No se pudo generar el link', color: 'error' })
+//     }
+// }
+
+const realtimeConnected = ref(false)
+
+const setupRealtime = () => {
     if (realtimeChannel) {
         supabase.removeChannel(realtimeChannel)
+        realtimeConnected.value = false
+        realtimeChannel = null
     }
     
     realtimeChannel = supabase
@@ -207,7 +201,7 @@ onMounted(async () => {
         .on(
             'postgres_changes',
             {
-                event: '*', // Listen to INSERT, UPDATE, DELETE
+                event: '*',
                 schema: 'public',
                 table: 'transactions'
             },
@@ -215,7 +209,7 @@ onMounted(async () => {
                 if (payload.eventType === 'UPDATE' && payload.new.status === 'paid' && payload.old.status !== 'paid') {
                     toast.add({
                         title: '¡Pago Recibido!',
-                        description: `La venta #${payload.new.folio || payload.new.id.slice(0,8)} ha sido pagada exitosamente.`,
+                        description: `La venta #${payload.new.transaction_number || payload.new.id.slice(0,8)} ha sido pagada exitosamente.`,
                         icon: 'i-heroicons-check-circle',
                         color: 'success'
                     })
@@ -224,9 +218,26 @@ onMounted(async () => {
                 loadTransactions()
             }
         )
-        .subscribe()
+        .subscribe((status: string) => {
+            realtimeConnected.value = (status === 'SUBSCRIBED')
+        })
+}
 
-  }, { immediate: true, deep: true })
+onMounted(async () => {
+  loadTransactions()
+  fetchPaymentMethods()
+  
+  if (!profile.value) {
+      await fetchProfile()
+  }
+  
+  setupRealtime()
+  
+  watch(() => profile.value, (newVal, oldVal) => {
+      if (newVal?.id !== oldVal?.id) {
+          setupRealtime()
+      }
+  })
 })
 
 onUnmounted(() => {
@@ -270,14 +281,18 @@ onUnmounted(() => {
       <UCard>
         <div class="text-center">
           <p class="text-xs text-gray-500 uppercase tracking-wider">Total Vendido</p>
-          <p class="text-2xl font-bold text-green-600">₡{{ summary.total.toLocaleString() }}</p>
+          <ClientOnly>
+            <p class="text-2xl font-bold text-green-600">₡{{ summary.total.toLocaleString() }}</p>
+          </ClientOnly>
         </div>
       </UCard>
       <UCard v-if="summary.pending > 0">
         <div class="text-center">
           <p class="text-xs text-gray-500 uppercase tracking-wider">Pendientes</p>
           <p class="text-2xl font-bold text-yellow-500">{{ summary.pending }}</p>
-          <p class="text-xs text-yellow-600">₡{{ summary.pendingTotal.toLocaleString() }}</p>
+          <ClientOnly>
+             <p class="text-xs text-yellow-600">₡{{ summary.pendingTotal.toLocaleString() }}</p>
+          </ClientOnly>
         </div>
       </UCard>
       <UCard v-if="summary.delivered > 0">
@@ -321,7 +336,9 @@ onUnmounted(() => {
 
         <template #created_at-cell="{ row }">
           <span class="text-sm">
-            {{ new Date(row.original.created_at).toLocaleTimeString('es-CR', { hour: '2-digit', minute: '2-digit' }) }}
+            <ClientOnly>
+              {{ new Date(row.original.created_at).toLocaleTimeString('es-CR', { hour: '2-digit', minute: '2-digit' }) }}
+            </ClientOnly>
           </span>
         </template>
 
@@ -348,7 +365,9 @@ onUnmounted(() => {
         </template>
 
         <template #total-cell="{ row }">
-          <span class="font-bold">₡{{ row.original.total?.toLocaleString() }}</span>
+          <ClientOnly>
+            <span class="font-bold">₡{{ row.original.total?.toLocaleString() }}</span>
+          </ClientOnly>
         </template>
 
         <template #status-cell="{ row }">
@@ -358,18 +377,12 @@ onUnmounted(() => {
                 :class="['paid', 'cancelled'].includes(row.original.status) ? 'cursor-default' : 'cursor-pointer hover:opacity-80'"
                 @click="!['paid', 'cancelled'].includes(row.original.status) && openStatusModal(row.original)"
               >
-                <UBadge 
-                  :color="statusColors[row.original.status] || 'neutral'" 
-                  variant="subtle"
-                >
-                  {{ statusLabels[row.original.status] || row.original.status }}
-                </UBadge>
+                <StatusBadge 
+                  :status="row.original.status" 
+                  type="transaction"
+                />
               </button>
-              
-              <!-- Only show delivery status if it's explicitly set to something interesting 
-                   AND distinct from the main status. 
-                   If status is 'pending', delivery 'pending' is redundant.
-              -->
+
               <UBadge 
                 v-if="row.original.delivery_status && 
                       row.original.delivery_status !== 'delivered' && 
@@ -422,6 +435,18 @@ onUnmounted(() => {
                 />
             </UTooltip>
             
+            <!-- Commented out - generatePaymentLink function not available
+            <UTooltip v-else-if="row.original.status === 'pending'" text="Generar Link de Pago">
+                <UButton 
+                    variant="ghost" 
+                    color="primary" 
+                    icon="i-heroicons-globe-alt" 
+                    size="xs" 
+                    @click="generatePaymentLink(row.original)"
+                />
+            </UTooltip>
+            -->
+            
             <!-- Hide edit status button if final state -->
             <UButton 
               v-if="!['paid', 'cancelled'].includes(row.original.status)"
@@ -445,8 +470,16 @@ onUnmounted(() => {
                 class="flex justify-between items-center text-sm"
               >
                 <span class="flex-1">{{ item.product_name }}</span>
-                <span class="w-20 text-center">{{ item.quantity }} x ₡{{ item.unit_price?.toLocaleString() }}</span>
-                <span class="w-24 text-right font-semibold">₡{{ item.subtotal?.toLocaleString() }}</span>
+                <span class="w-20 text-center">
+                    <ClientOnly>
+                        {{ item.quantity }} x ₡{{ item.unit_price?.toLocaleString() }}
+                    </ClientOnly>
+                </span>
+                <span class="w-24 text-right font-semibold">
+                    <ClientOnly>
+                        ₡{{ item.subtotal?.toLocaleString() }}
+                    </ClientOnly>
+                </span>
               </div>
             </div>
             <div class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 flex justify-between font-bold">
@@ -543,10 +576,11 @@ onUnmounted(() => {
               <span class="font-mono font-bold">{{ selectedTransaction.transaction_number }}</span>
             </div>
             <div class="flex justify-between">
-              <span class="text-gray-600">Estado actual:</span>
-              <UBadge :color="statusColors[selectedTransaction.status]" variant="subtle">
-                {{ statusLabels[selectedTransaction.status] }}
-              </UBadge>
+              <span class="text-gray-600">{{ t('transactions.columns.status') }}:</span>
+              <StatusBadge 
+                :status="selectedTransaction.status" 
+                type="transaction"
+              />
             </div>
           </div>
 
@@ -600,7 +634,7 @@ onUnmounted(() => {
               color="primary" 
               class="flex-1" 
               :disabled="!newStatus || newStatus === selectedTransaction?.status"
-              @click="changeStatus"
+              @click="updateStatus"
             >
               Guardar Cambio
             </UButton>
@@ -609,18 +643,27 @@ onUnmounted(() => {
       </template>
     </UModal>
     <!-- Stripe Link Viewer Modal -->
-    <UModal v-model="showLinkModal">
-      <div class="p-6">
-        <h3 class="text-lg font-bold mb-4">Link de Pago Activo</h3>
-        
-        <div class="p-3 bg-gray-50 dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 break-all text-sm font-mono text-gray-600 mb-4 select-all">
-            {{ activeStripeLink }}
+    <UModal v-model:open="showLinkModal">
+      <template #body>
+        <div class="p-6">
+          <h3 class="text-lg font-bold mb-4">Link de Pago Activo</h3>
+          
+          <div class="p-3 bg-gray-50 dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 break-all text-sm font-mono text-gray-600 mb-4 select-all">
+              {{ activeStripeLink }}
+          </div>
+          <div class="flex justify-end gap-2">
+              <UButton color="neutral" variant="ghost" @click="showLinkModal = false">Cerrar</UButton>
+              <UButton color="neutral" icon="i-heroicons-clipboard" @click="copyActiveLink">Copiar</UButton>
+          </div>
         </div>
-        <div class="flex justify-end gap-2">
-            <UButton color="neutral" variant="ghost" @click="showLinkModal = false">Cerrar</UButton>
-            <UButton color="neutral" icon="i-heroicons-clipboard" @click="copyActiveLink">Copiar</UButton>
-        </div>
-      </div>
+      </template>
     </UModal>
+  </div>
+  
+  <div class="fixed bottom-4 right-4 z-50">
+      <UBadge :color="realtimeConnected ? 'success' : 'neutral'" variant="soft" class="opacity-75 hover:opacity-100 transition">
+          <UIcon name="i-heroicons-signal" class="w-4 h-4 mr-1" />
+          {{ realtimeConnected ? 'En Vivo' : 'Conectando...' }}
+      </UBadge>
   </div>
 </template>

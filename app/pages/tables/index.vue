@@ -162,7 +162,7 @@ const loadTables = async () => {
     
     tables.value = tempTables
   } catch (e) {
-    console.error('Error loading tables', e)
+
   } finally {
     loading.value = false
   }

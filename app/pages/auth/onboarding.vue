@@ -13,11 +13,16 @@ onMounted(async () => {
     attempts++
   }
 
+
   if (!user.value) {
     return router.push('/login?error=link_expired')
   }
 
   const plan = user.value.user_metadata?.selected_plan || 'startup'
+
+  if (plan === 'solo') {
+      return navigateTo('/')
+  }
 
   return navigateTo(`/payment/processing?plan=${plan}`, { replace: true })
 })

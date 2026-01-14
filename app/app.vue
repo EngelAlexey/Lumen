@@ -33,20 +33,20 @@ watch(user, (currentUser) => {
   }
 })
 
+const { initSessionKeeper } = useAuth()
+
+const userStore = useUserStore()
+
 onMounted(() => {
-  document.addEventListener('visibilitychange', async () => {
-    if (document.visibilityState === 'visible' && !isPublicRoute(route.path)) {      
-      const { data, error } = await client.auth.getSession()
-      
-      if (error || !data.session) {
-        router.push('/login')
-      }
-    }
-  })
+  initSessionKeeper()
+  userStore.initialize()
 
   client.auth.onAuthStateChange((event) => {
     if (event === 'SIGNED_OUT' && !isPublicRoute(route.path)) {
       router.push('/login')
+    }
+    if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        userStore.fetchProfile()
     }
   })
 })

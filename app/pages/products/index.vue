@@ -1,11 +1,20 @@
 <script setup lang="ts">
 import * as z from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
+import PageHeader from '@/components/common/PageHeader.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
+import { sectorConfig } from '@/constants/sectorConfig'
+import { productCategories } from '@/constants/productCategories'
+import { formatCurrency } from '@/utils/formatters'
 
+const { t } = useI18n()
 const { getProducts, createProduct, updateProduct, deleteProduct } = useProducts()
 const { getBusinessType } = useAuth()
 const { labels, features, businessType } = useBusinessConfig()
+const supabase = useSupabaseClient()
 const toast = useToast()
+
+const uploadingImage = ref(false)
 
 const loading = ref(true)
 const products = ref<any[]>([])
@@ -15,45 +24,16 @@ const currentBusinessType = ref('retail')
 const isEditing = ref(false)
 const editingProductId = ref<string | null>(null)
 
-// Configuración Normalizada de Sectores
-const sectorConfig: Record<string, any[]> = {
-  // Sector: Servicios (Taller, Estética, Consultoría)
-  services: [
-    { key: 'duration_minutes', label: 'Duración (min)', type: 'number', required: false, icon: 'i-heroicons-clock' },
-    { key: 'technician_name', label: 'Técnico/Encargado', type: 'text', required: false, icon: 'i-heroicons-user' },
-    { key: 'requires_appointment', label: 'Requiere Cita', type: 'boolean', required: false },
-    { key: 'warranty_period', label: 'Garantía (días)', type: 'number', required: false }
-  ],
-  // Sector: Retail General (Tienda, Bazar, Super)
-  retail: [
-    { key: 'brand', label: 'Marca', type: 'text', required: false, icon: 'i-heroicons-tag' },
-    { key: 'model', label: 'Modelo', type: 'text', required: false },
-    { key: 'min_stock', label: 'Stock Mínimo', type: 'number', required: false, icon: 'i-heroicons-bell-alert' }
-  ],
-  // Sector: Gastronomía (Restaurante, Soda)
-  gastronomy: [
-    { key: 'is_vegan', label: 'Vegano', type: 'boolean', required: false },
-    { key: 'is_gluten_free', label: 'Sin Gluten', type: 'boolean', required: false },
-    { key: 'is_spicy', label: 'Picante', type: 'boolean', required: false },
-    { key: 'preparation_time', label: 'Tiempo Prep. (min)', type: 'number', required: false, icon: 'i-heroicons-clock' }
-  ],
-  // Sector: Farmacia (Especializado)
-  pharmacy: [
-    { key: 'expiration_date', label: 'Vencimiento', type: 'date', required: true, icon: 'i-heroicons-calendar' },
-    { key: 'batch_number', label: 'Lote', type: 'text', required: true, icon: 'i-heroicons-archive-box' },
-    { key: 'laboratory', label: 'Laboratorio', type: 'text', required: false, icon: 'i-heroicons-beaker' },
-    { key: 'prescription_required', label: 'Requiere Receta', type: 'boolean', required: false }
-  ],
-  // Sector: Moda/Fashion (Especializado)
-  fashion: [
-    { key: 'brand', label: 'Marca', type: 'text', required: false },
-    { key: 'size', label: 'Talla', type: 'select', options: ['XS','S','M','L','XL','XXL','Unica'], required: true },
-    { key: 'color', label: 'Color', type: 'text', required: true, icon: 'i-heroicons-swatch' },
-    { key: 'material', label: 'Material', type: 'text', required: false }
-  ]
-}
-
+// Dynamic fields based on sector (imported from constants)
 const dynamicFields = computed(() => sectorConfig[currentBusinessType.value] ?? sectorConfig['retail'] ?? [])
+
+// Categories with i18n
+const categoryOptions = computed(() => 
+  productCategories.map(cat => ({
+    value: cat.value,
+    label: t(cat.label_key)
+  }))
+)
 
 const state = reactive({
   name: '',
@@ -64,11 +44,12 @@ const state = reactive({
   sku: '',
   description: '',
   is_service: false,
+  image_url: '' as string | null,
   metadata: {} as Record<string, any>
 })
 
 const baseSchema = z.object({
-  name: z.string().min(2, 'Nombre requerido'),
+  name: z.string().min(2, t('products.form.validation.name_min')),
   price: z.number().min(0),
   cost: z.number().min(0),
   stock_quantity: z.number().int(),
@@ -77,26 +58,24 @@ const baseSchema = z.object({
   description: z.string().optional()
 })
 
-const categories = ['General', 'Servicios', 'Bebidas', 'Alimentos', 'Cuidado Personal', 'Electrónica', 'Ropa', 'Medicamentos']
-
 const columns = computed(() => {
   const cols: any[] = [
-    { accessorKey: 'name', header: 'Producto/Servicio' },
-    { accessorKey: 'sku', header: 'Código' },
-    { accessorKey: 'category', header: 'Categoría' },
-    { accessorKey: 'price', header: 'Precio' },
-    { accessorKey: 'stock_quantity', header: 'Stock' }
+    { accessorKey: 'name', header: t('products.columns.name') },
+    { accessorKey: 'sku', header: t('products.columns.sku') },
+    { accessorKey: 'category', header: t('products.columns.category') },
+    { accessorKey: 'price', header: t('products.columns.price') },
+    { accessorKey: 'stock_quantity', header: t('products.columns.stock') }
   ]
   
   if (currentBusinessType.value === 'pharmacy') {
-    cols.splice(2, 0, { accessorKey: 'metadata.expiration_date', header: 'Vence' })
+    cols.splice(2, 0, { accessorKey: 'metadata.expiration_date', header: t('products.columns.expiration') })
   }
   if (currentBusinessType.value === 'fashion') {
-    cols.splice(2, 0, { accessorKey: 'metadata.size', header: 'Talla' })
+    cols.splice(2, 0, { accessorKey: 'metadata.size', header: t('products.columns.size') })
   }
   if (currentBusinessType.value === 'services') {
-    cols.splice(4, 1) // Quitar columna de stock visualmente si es puro servicio (opcional)
-    cols.splice(2, 0, { accessorKey: 'metadata.duration_minutes', header: 'Minutos' })
+    cols.splice(4, 1) 
+    cols.splice(2, 0, { accessorKey: 'metadata.duration_minutes', header: t('products.columns.duration') })
   }
   
   cols.push({ id: 'actions', header: '' })
@@ -132,6 +111,7 @@ function openEditModal(product: any) {
   state.sku = product.sku || ''
   state.description = product.description || ''
   state.is_service = product.is_service || false
+  state.image_url = product.image_url || null
   state.metadata = product.metadata || {}
   
   showModal.value = true
@@ -156,6 +136,7 @@ async function handleSubmit(event: FormSubmitEvent<any>) {
     sku: state.sku,
     description: state.description,
     is_service: state.is_service,
+    image_url: state.image_url,
     metadata: state.metadata
   }
 
@@ -190,12 +171,42 @@ function resetForm() {
   state.sku = ''
   state.description = ''
   state.is_service = false
+  state.image_url = null
   state.metadata = {}
+}
+
+async function handleImageUpload(event: any) {
+  const file = event.target.files[0]
+  if (!file) return
+
+  uploadingImage.value = true
+  const fileExt = file.name.split('.').pop()
+  const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`
+  const filePath = `${fileName}`
+
+  try {
+    const { error: uploadError } = await supabase.storage
+      .from('products')
+      .upload(filePath, file)
+
+    if (uploadError) throw uploadError
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('products')
+      .getPublicUrl(filePath)
+
+    state.image_url = publicUrl
+    toast.add({ title: t('products.messages.image_uploaded'), color: 'success' })
+  } catch (error: any) {
+    toast.add({ title: t('products.messages.image_upload_error'), description: error.message, color: 'error' })
+  } finally {
+    uploadingImage.value = false
+  }
 }
 
 // CORRECCIÓN REACTIVIDAD DE ELIMINACIÓN
 async function handleDelete(id: string) {
-  if(!confirm('¿Estás seguro de eliminar este ítem?')) return
+  if(!confirm(t('products.messages.delete_confirm'))) return
   
   // 1. Llamada a la API
   const { success, error } = await deleteProduct(id)
@@ -203,9 +214,9 @@ async function handleDelete(id: string) {
   if (success) {
     // 2. Actualización Local Inmediata (Sin esperar refresh)
     products.value = products.value.filter(p => p.id !== id)
-    toast.add({ title: 'Eliminado', color: 'success' })
+    toast.add({ title: t('products.messages.deleted'), color: 'success' })
   } else {
-    toast.add({ title: 'Error', description: error, color: 'error' })
+    toast.add({ title: t('products.messages.error'), description: error, color: 'error' })
   }
 }
 
@@ -216,7 +227,7 @@ async function quickStockUpdate(product: any, delta: number) {
   
   if (success) {
     product.stock_quantity = newStock
-    toast.add({ title: 'Stock actualizado', color: 'success' })
+    toast.add({ title: t('products.messages.stock_updated'), color: 'success' })
   }
 }
 
@@ -246,25 +257,30 @@ watch(showModal, (isOpen) => {
 
 <template>
   <div class="space-y-6">
-    <div class="flex justify-between items-center">
-      <div>
-        <h2 class="text-xl font-bold text-gray-900 dark:text-white capitalize">
-          {{ labels.products }}
-        </h2>
-        <p class="text-sm text-gray-500">
-          Modo: <span class="font-semibold text-primary-600 capitalize">{{ currentBusinessType }}</span>
-          <span v-if="features.stock" class="ml-2 text-green-600">• Control de Stock activo</span>
-        </p>
-      </div>
-      <UButton icon="i-heroicons-plus" color="primary" @click="openCreateModal">
-        Nuevo {{ currentBusinessType === 'services' ? 'Servicio' : (currentBusinessType === 'gastronomy' ? 'Platillo' : 'Producto') }}
-      </UButton>
-    </div>
+    <PageHeader 
+      :title="labels.products"
+      icon="i-heroicons-cube"
+      :subtitle="t('products.subtitle', { mode: currentBusinessType })"
+    >
+      <template #actions>
+        <UButton icon="i-heroicons-plus" color="primary" @click="openCreateModal">
+          {{ currentBusinessType === 'services' 
+            ? t('products.buttons.new_service') 
+            : (currentBusinessType === 'gastronomy' 
+              ? t('products.buttons.new_dish') 
+              : t('products.buttons.new'))
+          }}
+        </UButton>
+      </template>
+    </PageHeader>
 
     <UCard>
       <UTable :columns="columns" :data="products" :loading="loading">
         <template #name-cell="{ row }">
           <div class="flex items-center gap-2">
+            <div v-if="row.original.image_url" class="relative group w-8 h-8 rounded overflow-hidden flex-shrink-0 border border-gray-100 dark:border-gray-700">
+                <img :src="row.original.image_url" class="w-full h-full object-cover" />
+            </div>
             <UIcon v-if="row.original.is_service" name="i-heroicons-wrench-screwdriver" class="w-4 h-4 text-blue-500" />
             <span class="font-medium">{{ row.original.name }}</span>
           </div>
@@ -331,27 +347,66 @@ watch(showModal, (isOpen) => {
       </UTable>
     </UCard>
 
-    <UModal v-model:open="showModal" :title="isEditing ? 'Editar Producto' : 'Nuevo Producto'">
+    <UModal 
+      v-model:open="showModal" 
+      :title="isEditing ? t('products.modal.title_edit') : t('products.modal.title_new')"
+    >
       <template #body>
         <UForm :schema="baseSchema" :state="state" class="space-y-4" @submit="handleSubmit">
           
           <div class="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800">
-            <h3 class="text-sm font-semibold text-primary-600 mb-3 uppercase tracking-wider">Datos Básicos</h3>
+            <h3 class="text-sm font-semibold text-primary-600 mb-3 uppercase tracking-wider">
+              {{ t('products.modal.section_basic') }}
+            </h3>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <UFormField label="Nombre" name="name" class="md:col-span-2">
-                <UInput v-model="state.name" icon="i-heroicons-tag" :placeholder="currentBusinessType === 'services' ? 'Ej. Mantenimiento Preventivo' : 'Ej. Coca Cola 2.5L'" />
+              <UFormField :label="t('products.form.labels.name')" name="name" class="md:col-span-2">
+                <UInput 
+                  v-model="state.name" 
+                  icon="i-heroicons-tag" 
+                  :placeholder="currentBusinessType === 'services' 
+                    ? t('products.form.placeholders.name_service') 
+                    : t('products.form.placeholders.name')" 
+                />
               </UFormField>
 
-              <UFormField label="Precio Venta" name="price">
-                <UInput v-model.number="state.price" type="number" placeholder="0">
+              <div class="md:col-span-2">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                  {{ t('products.form.labels.image') }}
+                </label>
+                <div class="flex items-center gap-4">
+                    <div v-if="state.image_url" class="relative group">
+                        <img :src="state.image_url" class="w-20 h-20 object-cover rounded-lg border border-gray-200" />
+                        <button type="button" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity" @click="state.image_url = null">
+                            <UIcon name="i-heroicons-x-mark" class="w-4 h-4" />
+                        </button>
+                    </div>
+                    <div v-else class="w-20 h-20 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center border border-dashed border-gray-300 dark:border-gray-700">
+                        <UIcon name="i-heroicons-photo" class="w-8 h-8 text-gray-400" />
+                    </div>
+                    
+                    <div class="flex-grow">
+                        <input type="file" accept="image/*" @change="handleImageUpload" class="block w-full text-sm text-gray-500
+                            file:mr-4 file:py-2 file:px-4
+                            file:rounded-full file:border-0
+                            file:text-sm file:font-semibold
+                            file:bg-primary-50 file:text-primary-700
+                            hover:file:bg-primary-100
+                        "/>
+                        <p class="text-xs text-gray-500 mt-1" v-if="uploadingImage">Subiendo...</p>
+                    </div>
+                </div>
+              </div>
+
+              <UFormField :label="t('products.form.labels.price')" name="price">
+                <UInput v-model.number="state.price" type="number" :placeholder="t('products.form.placeholders.price')">
                   <template #leading>
                     <span class="text-gray-500 dark:text-gray-400 text-sm">₡</span>
                   </template>
                 </UInput>
               </UFormField>
 
-              <UFormField label="Stock" name="stock_quantity">
-                <UInput v-model.number="state.stock_quantity" type="number" icon="i-heroicons-cube" placeholder="0" />
+              <UFormField :label="t('products.form.labels.stock')" name="stock_quantity">
+                <UInput v-model.number="state.stock_quantity" type="number" icon="i-heroicons-cube" :placeholder="t('products.form.placeholders.price')" />
               </UFormField>
               
               <div class="md:col-span-2">
@@ -362,13 +417,13 @@ watch(showModal, (isOpen) => {
 
           <div v-if="dynamicFields.length > 0" class="p-4 bg-primary-50 dark:bg-primary-950/30 rounded-lg border border-primary-100 dark:border-primary-900">
             <h3 class="text-sm font-semibold text-primary-600 mb-3 uppercase tracking-wider">
-              Detalles Específicos
+              {{ t('products.modal.section_specific') }}
             </h3>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <template v-for="field in dynamicFields" :key="field.key">
                 <UFormField 
                   v-if="['text', 'number', 'date'].includes(field.type)"
-                  :label="field.label" 
+                  :label="t(field.label_key)" 
                   :name="`metadata.${field.key}`"
                   :required="field.required"
                 >
@@ -376,19 +431,19 @@ watch(showModal, (isOpen) => {
                     v-model="state.metadata[field.key]" 
                     :type="field.type" 
                     :icon="field.icon"
-                    :placeholder="field.label"
+                    :placeholder="t(field.label_key)"
                   />
                 </UFormField>
                 <div v-if="field.type === 'boolean'" class="flex items-center h-full pt-1">
                     <UCheckbox 
                       v-model="state.metadata[field.key]" 
-                      :label="field.label" 
+                      :label="t(field.label_key)" 
                       color="primary"
                     />
                   </div>
                   <UFormField 
                     v-if="field.type === 'select'"
-                    :label="field.label"
+                    :label="t(field.label_key)"
                   >
                     <USelectMenu 
                       v-model="state.metadata[field.key]" 
@@ -401,18 +456,18 @@ watch(showModal, (isOpen) => {
           </div>
 
           <div class="grid grid-cols-2 gap-4">
-             <UFormField label="Costo (Opcional)" name="cost">
+             <UFormField :label="t('products.form.labels.cost')" name="cost">
                 <UInput v-model.number="state.cost" type="number" placeholder="0">
                   <template #leading>
                     <span class="text-gray-500 dark:text-gray-400 text-sm">₡</span>
                   </template>
                 </UInput>
               </UFormField>
-             <UFormField label="Categoría" name="category">
-                <USelectMenu v-model="state.category" :items="categories" class="w-full" />
+             <UFormField :label="t('products.form.labels.category')" name="category">
+                <USelectMenu v-model="state.category" :items="categoryOptions" class="w-full" />
              </UFormField>
-             <UFormField label="SKU / Código" name="sku" class="col-span-2">
-                <UInput v-model="state.sku" icon="i-heroicons-qr-code" placeholder="Código de barras o referencia" />
+             <UFormField :label="t('products.form.labels.sku')" name="sku" class="col-span-2">
+                <UInput v-model="state.sku" icon="i-heroicons-qr-code" :placeholder="t('products.form.placeholders.sku')" />
               </UFormField>
           </div>
 

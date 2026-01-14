@@ -1,0 +1,341 @@
+{
+    "validations": {
+        "missing_data": "Missing required data (businessId, customer, items)",
+        "incomplete_customer": "Incomplete customer information (name and phone required)"
+    },
+    "business_types": {
+        "retail": {
+            "label": "Retail (Store/Bazaar)",
+            "description": "Stores, mini markets, bazaars"
+        },
+        "restaurant": {
+            "label": "Gastronomy (Restaurant/Bar)",
+            "description": "Restaurants, diners, cafeterias"
+        },
+        "services": {
+            "label": "Services (Workshop/Beauty)",
+            "description": "Workshops, beauty salons, consulting"
+        },
+        "pharmacy": {
+            "label": "Pharmacy (Health)",
+            "description": "Pharmacies and drugstores"
+        },
+        "fashion": {
+            "label": "Fashion (Clothing/Accessories)",
+            "description": "Boutiques, shoe stores"
+        },
+        "delivery": {
+            "label": "Distribution (Delivery)",
+            "description": "Logistics and deliveries"
+        },
+        "online": {
+            "label": "Online Only",
+            "description": "E-commerce without physical store"
+        },
+        "hybrid": {
+            "label": "Hybrid",
+            "description": "Physical store + online"
+        }
+    },
+    "roles": {
+        "owner": "Owner",
+        "manager": "Manager",
+        "cashier": "Cashier",
+        "staff": "Staff",
+        "all": "All Roles"
+    },
+    "status": {
+        "active": "Active",
+        "inactive": "Inactive",
+        "all": "All",
+        "transaction": {
+            "paid": "Paid",
+            "pending": "Pending",
+            "delivered": "Delivered",
+            "cancelled": "Cancelled"
+        },
+        "delivery": {
+            "pending": "Pending",
+            "preparing": "Preparing",
+            "ready": "Ready",
+            "in_route": "In Route",
+            "delivered": "Delivered",
+            "cancelled": "Cancelled"
+        },
+        "payment_method": {
+            "cash": "Cash",
+            "card_manual": "Card",
+            "transfer": "Transfer",
+            "stripe_checkout": "Stripe / Online",
+            "other": "Other"
+        }
+    },
+    "common": {
+        "search": "Search..."
+    },
+    "messages": {
+        "validation": {
+            "email_invalid": "Invalid email",
+            "password_min_length": "Password must be at least 8 characters",
+            "passwords_dont_match": "Passwords do not match",
+            "name_too_short": "Name is too short",
+            "required_field": "This field is required"
+        },
+        "auth": {
+            "login_success": "Login successful",
+            "login_error": "Invalid credentials",
+            "register_success": "Registration successful. Please verify your email.",
+            "register_error": "Error registering account",
+            "invalid_session": "User without assigned business or invalid session"
+        },
+        "generic": {
+            "error_unexpected": "An unexpected error occurred",
+            "success": "Operation successful"
+        },
+        "transactions": {
+            "require_cash_session": "This business requires an open cash session for in-person sales",
+            "payment_received": "Payment Received!",
+            "sale_charged": "Sale #{number} has been charged successfully.",
+            "payment_link_error": "Error generating payment link"
+        },
+        "users": {
+            "create_error": "Error creating user",
+            "update_error": "Error updating user",
+            "delete_error": "Error deleting user"
+        }
+    },
+    "validation": {
+        "email_invalid": "Invalid email",
+        "password_min_length": "Password must be at least 8 characters",
+        "passwords_dont_match": "Passwords do not match",
+        "name_too_short": "Name is too short",
+        "required_field": "This field is required"
+    },
+    "auth": {
+        "login_success": "Login successful",
+        "login_error": "Incorrect credentials",
+        "register_success": "Registration successful. Please verify your email.",
+        "register_error": "Error creating account",
+        "email_already_registered": "This email is already registered. Please login.",
+        "invalid_credentials": "Invalid credentials",
+        "welcome": "Welcome!",
+        "access_error": "Access error",
+        "provider_soon": "Coming soon"
+    },
+    "generic": {
+        "error_unexpected": "An unexpected error occurred",
+        "success": "Successful operation"
+    },
+    "register": {
+        "title": "Create Account",
+        "subtitle": "Optimize your business with modern technology",
+        "steps": {
+            "account": "Account",
+            "business": "Business",
+            "personal": "Personal"
+        },
+        "labels": {
+            "email": "Email Address",
+            "email_placeholder": "Enter your email",
+            "password": "Password",
+            "password_placeholder": "••••••••",
+            "confirm_password": "Confirm Password",
+            "business_name": "Business Name",
+            "business_name_placeholder": "Ex. My Store",
+            "category": "Category",
+            "phone": "Phone",
+            "phone_placeholder": "8888-8888",
+            "address": "Address",
+            "address_placeholder": "San Jose",
+            "full_name": "Your Full Name",
+            "full_name_placeholder": "Full Name"
+        },
+        "buttons": {
+            "continue": "Continue",
+            "back": "Back",
+            "finish": "Complete Registration",
+            "login_link": "Login",
+            "has_account": "Already have an account?"
+        },
+        "info": {
+            "almost_done": "Almost done!",
+            "admin_account": "You are creating an admin account for {business}."
+        }
+    },
+    "cash_register": {
+        "title": "Cash Control",
+        "toasts": {
+            "opened_title": "Register Opened",
+            "opened_desc": "You can start selling now",
+            "error_title": "Error",
+            "closed_title": "Register Closed",
+            "closed_desc": "Shift ended. {diffText}"
+        },
+        "diff": {
+            "none": "No difference",
+            "surplus": "Surplus: ₡{amount}",
+            "shortage": "Shortage: ₡{amount}"
+        },
+        "status": {
+            "closed_title": "Register is Closed",
+            "closed_desc": "You must open the register to start selling.",
+            "current_status": "Current Status",
+            "open": "Open",
+            "started_at": "Started:",
+            "opening_amount": "Opening Amount"
+        },
+        "actions": {
+            "open": "Open Register",
+            "close": "Close Register",
+            "go_to_sales": "Go to Sales",
+            "cancel": "Cancel",
+            "confirm_open": "Open Shift",
+            "confirm_close": "Confirm Close"
+        },
+        "modals": {
+            "open_title": "Open Register",
+            "open_desc": "Enter the opening cash amount.",
+            "close_title": "Close Register"
+        },
+        "alerts": {
+            "irreversible_title": "Irreversible Action",
+            "irreversible_desc": "Closing the register will generate the final shift report."
+        },
+        "summary": {
+            "title": "Shift Summary",
+            "opening": "Opening:",
+            "total_sales": "Total Sales:",
+            "cash": "Cash:",
+            "card": "Card:",
+            "transfer": "Transfer:",
+            "online": "Stripe / Online:",
+            "other": "Other:",
+            "expected_total": "Expected Total:"
+        },
+        "labels": {
+            "notes": "Notes / Observations"
+        },
+        "placeholders": {
+            "notes": "Differences, news..."
+        }
+    },
+    "login": {
+        "title": "Welcome",
+        "subtitle": "Sign in to your account to continue",
+        "divider": "Or continue with email",
+        "forgot_password": "Forgot password?",
+        "remember_me": "Remember me",
+        "submit": "Sign In",
+        "no_account": "Don't have an account?",
+        "register_link": "Sign up"
+    },
+    "landing": {
+        "nav": {
+            "login": "Login",
+            "start": "Start Free"
+        },
+        "hero": {
+            "title_prefix": "Total control for your",
+            "title_highlight": "Business",
+            "subtitle": "Manage sales, inventory, and staff in one platform. Designed to grow with you.",
+            "cta_primary": "Start your free trial",
+            "cta_secondary": "Go to Dashboard"
+        },
+        "features": {
+            "pos_title": "Point of Sale",
+            "pos_desc": "Register sales in seconds, accept multiple payment methods and keep your register balanced.",
+            "reports_title": "Live Reports",
+            "reports_desc": "Make decisions based on real data. Know your best-selling products and peak hours.",
+            "team_title": "Team Management",
+            "team_desc": "Assign roles, control permissions and monitor staff performance easily."
+        },
+        "footer": "© {year} Lumen Platform. All rights reserved."
+    },
+    "dashboard": {
+        "stats": {
+            "sales_today": "Sales Today",
+            "transactions": "Transactions",
+            "pending": "Pending",
+            "cash_in_register": "Cash in Register",
+            "vs_yesterday": "{value} vs yesterday",
+            "delivered_count": "{count} delivered",
+            "since_opening": "Since opening"
+        },
+        "sections": {
+            "recent_transactions": "Recent Transactions",
+            "quick_actions": "Quick Actions"
+        },
+        "empty": {
+            "no_transactions": "No transactions yet",
+            "create_first": "Create First Transaction"
+        },
+        "actions": {
+            "new_sale": "New Sale",
+            "open_register": "Open Register",
+            "view_reports": "View Reports",
+            "products": "Products"
+        },
+        "transactions": {
+            "general_customer": "General Customer",
+            "status": {
+                "paid": "Paid",
+                "delivered": "Delivered",
+                "pending": "Pending",
+                "cancelled": "Cancelled"
+            }
+        }
+    },
+    "pricing": {
+        "title": "Plans & Pricing",
+        "subtitle": "Choose the plan that fits your business",
+        "most_popular": "MOST POPULAR",
+        "per_month": "/ month",
+        "includes_trial": "Includes 14-day free trial",
+        "trial_days": "14 days",
+        "contact_support": "Questions? Contact us at",
+        "plans": {
+            "solo": {
+                "name": "Solo",
+                "description": "For entrepreneurs just starting",
+                "button": "Start for Free",
+                "features": {
+                    "admin": "1 Admin User",
+                    "sales": "Basic Point of Sale",
+                    "inventory": "Inventory Control",
+                    "reports": "Basic Reports",
+                    "support": "Email Support"
+                }
+            },
+            "startup": {
+                "name": "Startup",
+                "description": "For growing businesses",
+                "button": "Start Trial",
+                "features": {
+                    "users": "3 Users",
+                    "audit": "Register Audit",
+                    "cash": "Advanced Cash Control",
+                    "crm": "Basic CRM",
+                    "support": "Priority Support",
+                    "integration": "Stripe Integration"
+                }
+            },
+            "organization": {
+                "name": "Organization",
+                "description": "For large operations",
+                "button": "Contact Sales",
+                "features": {
+                    "users": "Unlimited Users",
+                    "branches": "Multi-branch",
+                    "api": "API Access",
+                    "reports": "Advanced Reports",
+                    "manager": "Custom Roles",
+                    "sla": "Guaranteed SLA"
+                }
+            }
+        },
+        "errors": {
+            "payment_title": "Payment Error",
+            "payment_desc": "Could not start payment process. Please try again."
+        }
+    }
+}

@@ -65,9 +65,10 @@
 
         <!-- Business Settings -->
         <div v-if="activeTab === 'business'" class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
-          <div v-if="!isOwner && !isManager" class="text-center py-8 text-gray-500">
+          <div v-if="!isOwner" class="text-center py-8 text-gray-500">
             <UIcon name="i-heroicons-lock-closed" class="w-12 h-12 mx-auto mb-2 text-gray-400" />
-            <p>Solo los propietarios y gerentes pueden editar los datos del negocio.</p>
+            <p>Solo el propietario puede editar los datos del negocio.</p>
+            <p class="text-sm mt-2">Los gerentes pueden editar la configuración de la tienda en Store Settings.</p>
           </div>
 
           <div v-else>
@@ -181,11 +182,12 @@
 <script setup lang="ts">
 const supabase = useSupabaseClient<any>()
 const { updateProfile, updateBusiness } = useAuth()
-const { getRoleLabel, isOwner, isManager, currentRole, fetchCurrentRole } = useRoles()
-const { loadBusinessType, config, businessType: currentBusinessType } = useBusinessConfig()
+const { getRoleLabel, isOwner, isManager, currentRole } = useRoles()
+const { loadBusinessType, config, businessType: currentBusinessType, getBusinessPreset } = useBusinessConfig()
+const userStore = useUserStore()
 const toast = useToast()
 
-const loading = ref(true)
+const loading = computed(() => userStore.loading && !userStore.initialized)
 const saving = ref(false)
 const activeTab = ref('profile')
 
@@ -194,9 +196,9 @@ const tabs = [
   { id: 'business', label: 'Mi Negocio', icon: 'i-heroicons-building-storefront' },
 ]
 
-import { BUSINESS_TYPES } from '~/constants/businessTypes'
 
-const businessTypes = BUSINESS_TYPES
+
+const { businessTypes } = useBusinessTypes()
 
 const profileForm = reactive({
   fullName: '',
@@ -211,70 +213,37 @@ const businessForm = reactive({
   address: ''
 })
 
-const roleLabel = computed(() => currentRole.value ? getRoleLabel(currentRole.value) : 'Cargando...')
+const roleLabel = computed(() => {
+    if (currentRole.value) return getRoleLabel(currentRole.value)
+    if (userStore.loading) return 'Cargando...'
+    return 'Sin Rol'
+})
 
 const getBusinessTypeLabel = (type: string) => {
-  const found = businessTypes.find(t => t.value === type)
+  const found = businessTypes.value.find((t: any) => t.value === type)
   return found?.label || type
 }
 
-const loadData = async () => {
-  loading.value = true
-  try {
-    const { data: sessionData } = await supabase.auth.getSession()
-    const userId = sessionData?.session?.user?.id
+// Sync forms with Store Data
+watchEffect(() => {
+    if (userStore.profile) {
+        profileForm.fullName = userStore.profile.full_name || ''
+        profileForm.email = userStore.profile.email || userStore.user?.email || ''
+    }
     
-    if (!userId) {
-      console.warn('No user session found')
-      loading.value = false
-      return
+    if (userStore.business) {
+        businessForm.id = userStore.business.id
+        businessForm.name = userStore.business.name || ''
+        businessForm.type = userStore.business.business_type || 'retail'
+        businessForm.phone = userStore.business.phone || ''
+        businessForm.address = userStore.business.address || ''
     }
+})
 
-    await fetchCurrentRole(userId)
-
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('full_name, email, business_id')
-      .eq('id', userId)
-      .single()
-
-    if (userError) {
-      console.error('Error loading user:', userError)
-      toast.add({ title: 'Error cargando perfil', color: 'error' })
-      return
+onMounted(async () => {
+    if (!userStore.initialized) {
+        await userStore.initialize()
     }
-
-    if (userData) {
-      profileForm.fullName = userData.full_name || ''
-      profileForm.email = userData.email || sessionData.session?.user?.email || ''
-
-      if (userData.business_id) {
-        const { data: businessData, error: businessError } = await supabase
-          .from('businesses')
-          .select('id, name, business_type, phone, address')
-          .eq('id', userData.business_id)
-          .single()
-
-        if (businessError) {
-          console.error('Error loading business:', businessError)
-        } else if (businessData) {
-          businessForm.id = businessData.id
-          businessForm.name = businessData.name || ''
-          businessForm.type = businessData.business_type || 'retail'
-          businessForm.phone = businessData.phone || ''
-          businessForm.address = businessData.address || ''
-        }
-      }
-    }
-  } catch (e) {
-    console.error('Settings load error:', e)
-  } finally {
-    loading.value = false
-  }
-}
-
-onMounted(() => {
-  loadData()
 })
 
 const handleUpdateProfile = async () => {
@@ -304,8 +273,6 @@ const resetOptions = reactive({
 
 const handleUpdateBusiness = async () => {
   // Check if business type is changing
-  // Use currentBusinessType from composable (mapped to businessType)
-  
   if (businessForm.type !== currentBusinessType.value) {
     pendingBusinessType.value = businessForm.type
     showResetModal.value = true
@@ -319,32 +286,41 @@ const handleUpdateBusiness = async () => {
 const executeBusinessUpdate = async () => {
   saving.value = true
   try {
-    // 1. Execute Data Cleaning if requested (only if modal was shown/confirmed)
+    // 1. Execute Data Cleaning if requested
     if (showResetModal.value && (resetOptions.transactions || resetOptions.products)) {
         if (businessForm.id) {
-           const { error: rpcError } = await supabase.rpc('reset_business_data', {
-              p_business_id: businessForm.id,
-              p_delete_transactions: resetOptions.transactions,
-              p_delete_products: resetOptions.products
+           await $fetch('/api/businesses/reset', {
+             method: 'POST',
+             body: {
+               business_id: businessForm.id,
+               delete_transactions: resetOptions.transactions,
+               delete_products: resetOptions.products
+             }
            })
-           
-           if (rpcError) throw rpcError
-           toast.add({ title: 'Datos limpiados correctamente', color: 'success' })
         }
     }
 
     // 2. Update Business Info
-    const { success, error } = await updateBusiness({
+    const updates: any = {
       name: businessForm.name,
       business_type: businessForm.type,
       phone: businessForm.phone,
       address: businessForm.address
-    })
+    }
+
+    // If type changed, we MUST reset the business_config to the new preset 
+    // to avoid carrying over incompatible settings from the previous type
+    if (pendingBusinessType.value === businessForm.type) {
+        updates.business_config = getBusinessPreset(businessForm.type as any)
+    }
+
+    const { success, error } = await updateBusiness(updates)
 
     if (success) {
+      // Reload business type to update the navigation menu
+      await loadBusinessType()
+      
       toast.add({ title: 'Negocio actualizado', color: 'success' })
-      // Update global state immediately with the new type
-      await loadBusinessType(businessForm.type as any)
       
       toast.add({ 
         title: 'Menú actualizado', 
@@ -352,21 +328,14 @@ const executeBusinessUpdate = async () => {
         color: 'info' 
       })
       showResetModal.value = false
-      // Reset options
       resetOptions.transactions = false
       resetOptions.products = false
     } else {
-      console.error('Update error details:', error)
-      if (error && error.includes('businesses_business_type_check')) {
-        toast.add({ 
-          title: 'Tipo no soportado', 
-          description: 'La base de datos no acepta este tipo de negocio aún. Contacta al soporte.', 
-          color: 'warning'
-        })
-      } else {
-        toast.add({ title: 'Error al actualizar', description: error, color: 'error' })
-      }
+
+      toast.add({ title: 'Error al actualizar', description: error, color: 'error' })
     }
+  } catch (e: any) {
+      toast.add({ title: 'Error', description: e.message, color: 'error' })
   } finally {
     saving.value = false
   }

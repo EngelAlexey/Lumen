@@ -1,61 +1,65 @@
 <script setup lang="ts">
 definePageMeta({
-  layout: false
+  layout: 'auth'
 })
 
-const plans = [
-  {
-    name: 'Solo',
-    description: 'Para emprendedores individuales que inician.',
-    price: 0,
-    features: [
-      '1 Usuario Administrador',
-      'Registro de ventas básico',
-      'Gestión de inventario simple',
-      'Reportes diarios por email',
-      'Soporte por comunidad'
-    ],
-    button: 'Comenzar Gratis',
-    highlight: false,
-    trial: '14 días de prueba'
-  },
-  {
-    name: 'Startup',
-    description: 'Optimiza tu pequeña empresa con herramientas avanzadas.',
-    price: 29,
-    features: [
-      'Hasta 5 Usuarios',
-      'Auditoría en tiempo real',
-      'Control de caja multi-sesión',
-      'Gestión de clientes (CRM)',
-      'Soporte prioritario',
-      'Integración con Facturación'
-    ],
-    button: 'Elegir Startup',
-    highlight: true,
-    trial: '14 días de prueba'
-  },
-  {
-    name: 'Organization',
-    description: 'Escabilidad total para empresas con múltiples sucursales.',
-    price: 89,
-    features: [
-      'Usuarios Ilimitados',
-      'Múltiples Sucursales',
-      'API de integración personalizada',
-      'Reportes corporativos avanzados',
-      'Account Manager dedicado',
-      'SLA del 99.9%'
-    ],
-    button: 'Contactar Ventas',
-    highlight: false,
-    trial: '14 días de prueba'
-  }
-]
-
+const { t } = useI18n()
 const router = useRouter()
 const toast = useToast()
 const loadingPlans = ref<Record<string, boolean>>({})
+
+const plans = computed(() => [
+  {
+    name: 'Solo',
+    title: t('pricing.plans.solo.name'),
+    description: t('pricing.plans.solo.description'),
+    price: 0,
+    features: [
+      t('pricing.plans.solo.features.admin'),
+      t('pricing.plans.solo.features.sales'),
+      t('pricing.plans.solo.features.inventory'),
+      t('pricing.plans.solo.features.reports'),
+      t('pricing.plans.solo.features.support')
+    ],
+    button: t('pricing.plans.solo.button'),
+    highlight: false,
+    trial: t('pricing.trial_days')
+  },
+  {
+    name: 'Startup',
+    title: t('pricing.plans.startup.name'),
+    description: t('pricing.plans.startup.description'),
+    price: 29,
+    features: [
+      t('pricing.plans.startup.features.users'),
+      t('pricing.plans.startup.features.audit'),
+      t('pricing.plans.startup.features.cash'),
+      t('pricing.plans.startup.features.crm'),
+      t('pricing.plans.startup.features.support'),
+      t('pricing.plans.startup.features.integration')
+    ],
+    button: t('pricing.plans.startup.button'),
+    highlight: true,
+    trial: t('pricing.trial_days')
+  },
+  {
+    name: 'Organization',
+    title: t('pricing.plans.organization.name'),
+    description: t('pricing.plans.organization.description'),
+    price: 89,
+    features: [
+      t('pricing.plans.organization.features.users'),
+      t('pricing.plans.organization.features.branches'),
+      t('pricing.plans.organization.features.api'),
+      t('pricing.plans.organization.features.reports'),
+      t('pricing.plans.organization.features.manager'),
+      t('pricing.plans.organization.features.sla')
+    ],
+    button: t('pricing.plans.organization.button'),
+    highlight: false,
+    trial: t('pricing.trial_days')
+  }
+])
 
 async function selectPlan(plan: any) {
   if (plan.name === 'Organization') {
@@ -65,48 +69,61 @@ async function selectPlan(plan: any) {
 
   // If user is already logged in, go to checkout. If not, go to register.
   const user = useSupabaseUser()
-  if (!user.value) {
+  if (!user.value || !user.value.id) {
     router.push(`/register?plan=${plan.name.toLowerCase()}`)
     return
   }
 
   loadingPlans.value[plan.name] = true
   try {
-    const { url } = await $fetch('/api/stripe/create-checkout', {
+    const response = await $fetch<{ success: boolean; url?: string }>('/api/payments/create-subscription', {
       method: 'POST',
-      body: { plan: plan.name.toLowerCase() }
+      body: { 
+        userId: user.value.id,
+        plan: plan.name.toLowerCase(),
+        priceId: plan.price
+      }
     })
     
-    if (url) {
-      window.location.href = url
+    if (response.url) {
+      window.location.href = response.url
+    } else {
+       toast.add({
+        title: 'Suscripción Iniciada',
+        description: 'Se ha creado la suscripción. Revisa tu correo.',
+        color: 'primary'
+      })
     }
   } catch (err: any) {
+
     toast.add({
-      title: 'Error de cobro',
-      description: err.data?.message || 'No se pudo iniciar el proceso de pago.',
+      title: t('pricing.errors.payment_title'),
+      description: err.data?.message || t('pricing.errors.payment_desc'),
       color: 'error'
     })
   } finally {
     loadingPlans.value[plan.name] = false
   }
 }
+const route = useRoute()
+
+const store = useBusinessStore()
+const { userProfile } = storeToRefs(store)
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50 dark:bg-gray-950 py-20 px-4">
-    <UNotifications></UNotifications>
+  <div class="bg-gray-50 dark:bg-gray-950 flex-1 flex flex-col justify-center py-12 px-4">
+    
+
     <div class="max-w-7xl mx-auto space-y-16">
+      
       <!-- Title Section -->
-      <div class="text-center space-y-4 max-w-3xl mx-auto">
-        <div class="flex items-center justify-center gap-2 mb-4 group cursor-pointer" @click="router.push('/')">
-          <UIcon name="i-heroicons-light-bulb" class="w-8 h-8 text-primary-600 transition-transform group-hover:scale-110"></UIcon>
-          <span class="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">Lumen</span>
-        </div>
+      <div class="text-center space-y-4 max-w-3xl mx-auto pt-10">
         <h2 class="text-4xl md:text-5xl font-extrabold text-gray-900 dark:text-white tracking-tight">
-          Planes simples para cada etapa
+          {{ $t('pricing.title') }}
         </h2>
         <p class="text-xl text-gray-500">
-          Prueba cualquier plan gratis por 14 días. Sin tarjeta de crédito.
+          {{ $t('pricing.subtitle') }}
         </p>
       </div>
 
@@ -121,7 +138,7 @@ async function selectPlan(plan: any) {
           ]"
         >
           <div v-if="plan.highlight" class="absolute -top-4 left-1/2 -translate-x-1/2 bg-primary-600 text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-widest">
-            Más Popular
+            {{ $t('pricing.most_popular') }}
           </div>
 
           <div class="mb-8">
@@ -129,7 +146,7 @@ async function selectPlan(plan: any) {
             <p class="text-sm text-gray-500 mt-2 min-h-[40px]">{{ plan.description }}</p>
             <div class="mt-6 flex items-baseline gap-1">
               <span class="text-4xl font-extrabold text-gray-900 dark:text-white">${{ plan.price }}</span>
-              <span class="text-gray-500 font-medium">/mes</span>
+              <span class="text-gray-500 font-medium">{{ $t('pricing.per_month') }}</span>
             </div>
           </div>
 
@@ -153,7 +170,7 @@ async function selectPlan(plan: any) {
               {{ plan.button }}
             </UButton>
             <p class="text-center text-xs text-gray-400 font-medium">
-              Incluye {{ plan.trial }}
+              {{ $t('pricing.includes_trial', { trial: plan.trial }) }}
             </p>
           </div>
         </div>
@@ -162,7 +179,7 @@ async function selectPlan(plan: any) {
       <!-- FAQ Placeholder -->
       <div class="text-center pt-12">
         <p class="text-gray-500 text-sm">
-          Preguntas? Contacta a nuestro equipo en <a href="mailto:soporte@lumen.com" class="text-primary-600 font-medium hover:underline">soporte@lumen.com</a>
+          {{ $t('pricing.contact_support') }} <a href="mailto:soporte@lumen.com" class="text-primary-600 font-medium hover:underline">soporte@lumen.com</a>
         </p>
       </div>
     </div>

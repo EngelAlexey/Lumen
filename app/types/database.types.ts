@@ -78,11 +78,13 @@ export interface Database {
                     cost: number | null
                     category: string | null
                     stock_quantity: number | null
-                    is_service: boolean | null
+                    product_type: 'physical' | 'service' | 'digital'
+                    is_service: boolean | null // @deprecated Use product_type
                     is_active: boolean | null
                     created_at: string
                     updated_at: string
                     metadata: any | null
+                    image_url: string | null
                 }
                 Insert: {
                     id?: string
@@ -95,11 +97,13 @@ export interface Database {
                     cost?: number | null
                     category?: string | null
                     stock_quantity?: number | null
+                    product_type?: 'physical' | 'service' | 'digital'
                     is_service?: boolean | null
                     is_active?: boolean | null
                     created_at?: string
                     updated_at?: string
                     metadata?: any | null
+                    image_url?: string | null
                 }
                 Update: Partial<Database['public']['Tables']['products']['Insert']>
             }
@@ -209,6 +213,8 @@ export interface Database {
                     business_id: string | null
                     is_active: boolean
                     subscription_status?: string
+                    onvo_customer_id?: string | null
+                    onvo_subscription_id?: string | null
                     created_at: string
                 }
                 Insert: {
@@ -227,6 +233,9 @@ export interface Database {
                     full_name?: string | null
                     role?: string | null
                     business_id?: string | null
+                    subscription_status?: string
+                    onvo_customer_id?: string | null
+                    onvo_subscription_id?: string | null
                     created_at?: string
                 }
             }
@@ -235,21 +244,33 @@ export interface Database {
             businesses: {
                 Row: {
                     id: string
+                    slug: string
                     name: string
                     business_type: string
+                    business_config: Json | null
                     owner_id: string | null
                     phone: string | null
                     address: string | null
+                    stripe_customer_id: string | null
+                    stripe_subscription_id: string | null
+                    subscription_status: string | null
+                    subscription_plan: string | null
                     created_at: string
                     updated_at: string
                 }
                 Insert: {
                     id?: string
+                    slug: string
                     name: string
                     business_type: string
+                    business_config?: Json | null
                     owner_id?: string | null
                     phone?: string | null
                     address?: string | null
+                    stripe_customer_id?: string | null
+                    stripe_subscription_id?: string | null
+                    subscription_status?: string | null
+                    subscription_plan?: string | null
                     created_at?: string
                     updated_at?: string
                 }
@@ -257,9 +278,14 @@ export interface Database {
                     id?: string
                     name?: string
                     business_type?: string
+                    business_config?: Json | null
                     owner_id?: string | null
                     phone?: string | null
                     address?: string | null
+                    stripe_customer_id?: string | null
+                    stripe_subscription_id?: string | null
+                    subscription_status?: string | null
+                    subscription_plan?: string | null
                     created_at?: string
                     updated_at?: string
                 }
@@ -364,3 +390,4 @@ export type Business = Database['public']['Tables']['businesses']['Row']
 
 export type Customer = Database['public']['Tables']['customers']['Row']
 export type CustomerInsert = Database['public']['Tables']['customers']['Insert']
+// Force TS Update
