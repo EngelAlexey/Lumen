@@ -7,22 +7,18 @@ definePageMeta({
 })
 
 onMounted(async () => {
-  console.log('[Onboarding] Mounted')
   let attempts = 0
   while (!user.value && attempts < 20) {
     await new Promise(resolve => setTimeout(resolve, 200))
     attempts++
   }
 
-  console.log('[Onboarding] User state:', user.value ? 'Found' : 'Missing')
 
   if (!user.value) {
-    console.warn('[Onboarding] No user found, redirecting to login error')
     return router.push('/login?error=link_expired')
   }
 
   const plan = user.value.user_metadata?.selected_plan || 'startup'
-  console.log('[Onboarding] Redirecting to processing with plan:', plan)
 
   if (plan === 'solo') {
       return navigateTo('/')

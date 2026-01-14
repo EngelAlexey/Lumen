@@ -8,15 +8,13 @@ export const useCashRegister = () => {
     const loading = ref(false)
     const paymentMethods = ref<PaymentMethod[]>([])
 
-    // Helper to ensure business context is ready
     const ensureContext = async () => {
         if (!userStore.isready) {
             await userStore.initialize()
         }
 
-        // Double check: If data is missing but initialized, force a refresh
         if (!userStore.business?.id) {
-            console.log('[useCashRegister] Business missing, forcing refresh...')
+
             await userStore.fetchProfile()
         }
 
@@ -24,13 +22,6 @@ export const useCashRegister = () => {
         const businessId = userStore.business?.id
 
         if (!businessId || !userId) {
-            console.error('[useCashRegister] Context Error:', {
-                hasUser: !!userStore.user,
-                hasProfile: !!userStore.profile,
-                hasBusiness: !!userStore.business,
-                userId,
-                businessId
-            })
             throw new Error('Usuario sin negocio asignado o sesión inválida')
         }
         return {
@@ -95,7 +86,7 @@ export const useCashRegister = () => {
             return { success: true, session: data }
 
         } catch (error: any) {
-            console.error('Open session error:', error)
+
             return { success: false, error: error.message }
         }
     }
@@ -106,7 +97,7 @@ export const useCashRegister = () => {
         }
 
         try {
-            const { userId } = await ensureContext() // Only need userId for closed_by
+            const { userId } = await ensureContext()
 
             const { data: salesTotal } = await supabase
                 .from('transactions')
@@ -152,7 +143,7 @@ export const useCashRegister = () => {
             }
 
         } catch (error: any) {
-            console.error('Close session error:', error)
+
             return { success: false, error: error.message }
         }
     }

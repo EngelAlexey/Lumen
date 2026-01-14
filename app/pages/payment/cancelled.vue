@@ -3,12 +3,10 @@ definePageMeta({
   layout: false
 })
 
-// Auto-close window after 3 seconds
 onMounted(() => {
   setTimeout(() => {
     window.close()
     if (!window.closed) {
-        // Fallback if window.close() is blocked
     }
   }, 5000)
 })

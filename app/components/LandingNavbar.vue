@@ -15,8 +15,4 @@
 
 <script setup lang="ts">
 const localePath = useLocalePath()
-// Using simple router push or nuxt link is fine.
-// The original code used UButton to="..." which handles routing.
-// Original index.vue didn't have script logic for nav, just template.
-// I added cursor-pointer click handler for logo as safe fallback or explicit action.
 </script>

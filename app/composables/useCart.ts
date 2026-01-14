@@ -8,7 +8,30 @@ export interface CartItem {
 }
 
 export const useCart = () => {
-    const items = useState<CartItem[]>('cart-items', () => [])
+    const loadCartFromStorage = () => {
+        if (process.client) {
+            try {
+                const stored = localStorage.getItem('lumen-cart')
+                return stored ? JSON.parse(stored) : []
+            } catch (e) {
+
+                return []
+            }
+        }
+        return []
+    }
+
+    const items = useState<CartItem[]>('cart-items', loadCartFromStorage)
+
+    if (process.client) {
+        watch(items, (newItems) => {
+            try {
+                localStorage.setItem('lumen-cart', JSON.stringify(newItems))
+            } catch (e) {
+
+            }
+        }, { deep: true })
+    }
 
     const addItem = (product: Product, quantity: number = 1): { success: boolean; error?: string } => {
         const existingIndex = items.value.findIndex(item => item.product.id === product.id)

@@ -26,7 +26,7 @@ export const useUsers = () => {
 
             return { success: true, users: data as User[] }
         } catch (error: any) {
-            console.error('Error fetching users:', error)
+
             return { success: false, users: null, error: error.message }
         }
     }
@@ -52,7 +52,7 @@ export const useUsers = () => {
 
             return { success: true, user: response.user }
         } catch (error: any) {
-            console.error('Error creating user:', error)
+
             const msg = error.data?.statusMessage || error.message || 'Error al crear usuario'
             return { success: false, error: msg }
         }
@@ -76,7 +76,7 @@ export const useUsers = () => {
             })
             return { success: true }
         } catch (error: any) {
-            console.error('Error updating user:', error)
+
             const msg = error.data?.statusMessage || error.message || 'Error al actualizar usuario'
             return { success: false, error: msg }
         }
@@ -91,7 +91,7 @@ export const useUsers = () => {
 
             return { success: true }
         } catch (error: any) {
-            console.error('Error deleting user:', error)
+
             const msg = error.data?.statusMessage || error.message || 'Error al eliminar usuario'
             return { success: false, error: msg }
         }

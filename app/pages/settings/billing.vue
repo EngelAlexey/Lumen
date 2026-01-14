@@ -53,7 +53,7 @@ async function handleUpgrade(plan: any) {
              alert('Plan actualizado')
         }
     } catch (e) {
-        console.error(e)
+
         alert('Error changing plan')
     } finally {
         loading.value = false

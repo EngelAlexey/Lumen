@@ -7,15 +7,12 @@ export const useProducts = () => {
     const supabase = useSupabaseClient<any>()
     const userStore = useUserStore()
 
-    // Helper to ensure business context is ready
     const ensureContext = async () => {
         if (!userStore.isready) {
             await userStore.initialize()
         }
 
-        // Double check: If data is missing but initialized, force a refresh
         if (!userStore.business?.id) {
-            console.log('[useProducts] Business missing, forcing refresh...')
             await userStore.fetchProfile()
         }
 
@@ -23,13 +20,6 @@ export const useProducts = () => {
         const businessId = userStore.business?.id
 
         if (!businessId || !userId) {
-            console.error('[useProducts] Context Error:', {
-                hasUser: !!userStore.user,
-                hasProfile: !!userStore.profile,
-                hasBusiness: !!userStore.business,
-                userId,
-                businessId
-            })
             throw new Error('Usuario sin negocio asignado o sesión inválida')
         }
         return {
@@ -50,7 +40,6 @@ export const useProducts = () => {
                 .order('name', { ascending: true })
 
             if (error) {
-                console.error('Error fetching products:', error)
                 return { success: false, error: error.message }
             }
 
@@ -73,7 +62,6 @@ export const useProducts = () => {
             const { error } = await supabase.from('products').insert(payload)
 
             if (error) {
-                console.error('Supabase Insert Error:', error)
                 return { success: false, error: error.message }
             }
 
@@ -95,7 +83,7 @@ export const useProducts = () => {
 
     const updateProduct = async (id: string, updates: Partial<ProductInsert>) => {
         try {
-            await ensureContext() // Just ensure auth
+            await ensureContext()
 
             const { data, error } = await supabase
                 .from('products')
@@ -108,7 +96,6 @@ export const useProducts = () => {
                 .single()
 
             if (error) {
-                console.error('Supabase Update Error:', error)
                 return { success: false, error: error.message }
             }
 

@@ -322,7 +322,7 @@ const executeBusinessUpdate = async () => {
       resetOptions.transactions = false
       resetOptions.products = false
     } else {
-      console.error('Update error details:', error)
+
       toast.add({ title: 'Error al actualizar', description: error, color: 'error' })
     }
   } catch (e: any) {

@@ -22,7 +22,6 @@ export const useTransactions = () => {
 
         // Double check: If data is missing but initialized, force a refresh
         if (!userStore.business?.id) {
-            console.log('[useTransactions] Business missing, forcing refresh...')
             await userStore.fetchProfile()
         }
 
@@ -30,13 +29,6 @@ export const useTransactions = () => {
         const businessId = userStore.business?.id
 
         if (!businessId || !userId) {
-            console.error('[useTransactions] Context Error:', {
-                hasUser: !!userStore.user,
-                hasProfile: !!userStore.profile,
-                hasBusiness: !!userStore.business,
-                userId,
-                businessId
-            })
             throw new Error('Usuario sin negocio asignado o sesión inválida')
         }
         return {
@@ -133,7 +125,6 @@ export const useTransactions = () => {
             }
 
         } catch (error: any) {
-            console.error('Create transaction error:', error)
             return { success: false, error: error.message }
         } finally {
             loading.value = false
@@ -172,7 +163,7 @@ export const useTransactions = () => {
                         read: false
                     })
 
-                if (notifError) console.error('Error creating notification:', notifError)
+
             }
 
             if (error) throw error
@@ -235,7 +226,7 @@ export const useTransactions = () => {
             return { success: true, data: data as Transaction[] }
 
         } catch (error: any) {
-            console.error('Get transactions error:', error)
+
             return { success: false, error: error.message, data: [] }
         } finally {
             loading.value = false
@@ -283,7 +274,7 @@ export const useTransactions = () => {
             return { success: true, data: data as Transaction[] }
 
         } catch (error: any) {
-            console.error('Get transactions error:', error)
+
             return { success: false, error: error.message, data: [] }
         } finally {
             loading.value = false
@@ -317,7 +308,7 @@ export const useTransactions = () => {
             })
             return { success: true, url }
         } catch (error: any) {
-            console.error('Onvo payment error:', error)
+
             return { success: false, error: error.message || 'Error generando link de pago' }
         }
     }

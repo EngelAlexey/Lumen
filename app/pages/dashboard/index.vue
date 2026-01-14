@@ -14,6 +14,17 @@
         <UButton icon="i-heroicons-plus" color="primary" variant="solid" size="md" @click="newTransaction">
           {{ $t('dashboard.actions.new_sale') }}
         </UButton>
+        <UButton 
+            v-if="business?.slug" 
+            icon="i-heroicons-building-storefront" 
+            :to="`/store/${business.slug}`" 
+            target="_blank"
+            variant="soft" 
+            color="gray"
+            size="md"
+        >
+            Ver Tienda
+        </UButton>
       </div>
     </div>
 
@@ -149,10 +160,9 @@ import {
 
 const { t } = useI18n()
 const router = useRouter()
-const { ensureBusinessExists } = useAuth()
+const { ensureBusinessExists, business } = useAuth()
 const user = useSupabaseUser()
 
-// Compute user name for welcome message
 const userName = computed(() => {
     return user.value?.user_metadata?.full_name?.split(' ')[0] || 'Usuario'
 })

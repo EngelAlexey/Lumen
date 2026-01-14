@@ -45,7 +45,7 @@ async function startTest() {
         }
     } catch (e: any) {
         error.value = e.message
-        console.error(e)
+
     } finally {
         loading.value = false
     }

@@ -14,7 +14,6 @@ export default defineEventHandler(async (event) => {
     const client = serverSupabaseServiceRole<Database>(event)
     const onvo = useOnvo()
 
-    // 1. Fetch Transaction
     const { data: transaction, error: dbError } = await client
         .from('transactions')
         .select(`
@@ -33,7 +32,6 @@ export default defineEventHandler(async (event) => {
         throw createError({ statusCode: 404, message: 'Transaction not found' })
     }
 
-    // 2. Prepare line items with casting
     const lineItems = ((transaction as any).items as any[]).map(item => ({
         description: item.product_name,
         unitAmount: Math.round(item.unit_price * 100),
@@ -41,10 +39,8 @@ export default defineEventHandler(async (event) => {
         quantity: item.quantity
     }))
 
-    // 3. Create Checkout Link
     try {
         const link = await onvo.createCheckoutLink({
-            currency: 'CRC',
             redirectUrl: `${config.public.siteUrl}/payment/success?transaction_id=${transactionId}`,
             cancelUrl: `${config.public.siteUrl}/payment/cancel?transaction_id=${transactionId}`,
             customerName: (transaction as any).customer_name || 'Cliente Invitado',
@@ -56,7 +52,6 @@ export default defineEventHandler(async (event) => {
             }
         })
 
-        // 4. Update Transaction with Payment Info
         await (client.from('transactions') as any)
             .update({
                 payment_method: 'card_manual',
@@ -71,7 +66,6 @@ export default defineEventHandler(async (event) => {
         }
 
     } catch (error: any) {
-        console.error('[CreatePayment] Onvo Error:', error)
         throw createError({
             statusCode: 500,
             message: error.message || 'Failed to create payment link'

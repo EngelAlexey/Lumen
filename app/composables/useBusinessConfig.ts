@@ -172,22 +172,17 @@ export const useBusinessConfig = () => {
     const userStore = useUserStore()
     const { isAdmin } = useRoles()
 
-    // Map store state to local state for compatibility
     const businessType = computed(() => {
         return (userStore.business?.business_type as BusinessType) || 'retail'
     })
 
-    // We treat it as loaded if we have a business or if we are idle (not loading)
     const isLoaded = computed(() => userStore.isready)
 
     const loadBusinessType = async (forceType?: BusinessType) => {
         if (forceType) {
-            // This is mostly for debugging or override purposes
-            console.log('[useBusinessConfig] Forcing type is not supported in Singleton mode directly. Update business in DB.')
             return
         }
 
-        // Ensure store is initialized
         if (!userStore.initialized) {
             await userStore.initialize()
         }

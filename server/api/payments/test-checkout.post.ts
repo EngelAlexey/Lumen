@@ -1,7 +1,6 @@
 import { useOnvo } from '../../utils/onvo'
 
 export default defineEventHandler(async (event) => {
-    console.log('[TestCheckout] POST received')
     const config = useRuntimeConfig()
     const onvo = useOnvo()
 
@@ -20,7 +19,6 @@ export default defineEventHandler(async (event) => {
             description: 'Test Subscription Item'
         }]
 
-        console.log('[TestCheckout] Creating Onvo Checkout Link...')
 
         const checkoutSession = await onvo.createCheckoutLink({
             redirectUrl: `${config.public.siteUrl}/payment/success`,
@@ -34,7 +32,6 @@ export default defineEventHandler(async (event) => {
             }
         })
 
-        console.log('[TestCheckout] Success:', checkoutSession)
 
         return {
             success: true,

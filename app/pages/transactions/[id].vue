@@ -44,7 +44,7 @@ if (isSuccess && transaction.value?.status !== 'paid') {
             await refresh()
             toast.add({ title: 'Pago Verificado', description: 'La transacción se ha actualizado correctamente.' })
         } catch (err) {
-            console.error('Verification failed', err)
+
             toast.add({ title: 'Error', description: 'No se pudo verificar el pago automáticamente.', color: 'error' })
         } finally {
             verifying.value = false

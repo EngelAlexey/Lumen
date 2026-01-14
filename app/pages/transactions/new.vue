@@ -380,7 +380,6 @@ const { copy } = useClipboard()
 
 // Wrapper para forzar actualización (v3)
 async function handleCopyLink() {
-    console.log('User clicked copy link. URL:', stripeLink.value) 
     await copy(stripeLink.value, 'Link copiado al portapapeles')
 }
 

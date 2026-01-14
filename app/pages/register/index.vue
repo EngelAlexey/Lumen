@@ -101,9 +101,7 @@ async function nextStep() {
                 return // Stop here
             }
           } catch (e) {
-            console.error('Email check failed', e)
-            // Proceed if check fails? Or block? better block or warn. 
-            // For now let's assume if it fails we let auth handle it.
+            // Proceed if check fails
           } finally {
             loading.value = false
           }
@@ -120,7 +118,6 @@ async function nextStep() {
         color: 'warning'
       })
     } else {
-        console.error('Registration Step Error:', err)
     }
   }
 }
@@ -137,11 +134,8 @@ async function handleRegister() {
     const finalSchema = schema[2]
     if (finalSchema) finalSchema.parse(state)
 
-    // Register (Trigger creates DB records)
-    // Removed redundant check-email here as it's done in Step 1
     
-    console.log('Starting registration for:', state.email)
-
+    
     const registerResult = await register({
       email: state.email,
       password: state.password,
@@ -178,7 +172,6 @@ async function handleRegister() {
       error.value = MESSAGES.AUTH.REGISTER_ERROR
     }
   } catch (err: any) {
-    console.error('Registration Error:', err)
     if (err.message?.includes('already registered') || err.message?.includes('User already registered')) {
         error.value = 'Este correo ya está registrado. Por favor inicia sesión.'
     } else {

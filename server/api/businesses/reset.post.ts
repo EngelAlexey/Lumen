@@ -15,24 +15,16 @@ export default defineEventHandler(async (event) => {
         throw createError({ statusCode: 400, message: 'Business ID required' })
     }
 
-    // Verify ownership
     const { data: userRecord } = await client
         .from('users')
         .select('business_id, role')
         .eq('id', user.id)
-        .eq('id', user.id)
         .single()
 
-    console.log('[API Reset] User:', user.id)
-    console.log('[API Reset] User Record Business:', userRecord?.business_id)
-    console.log('[API Reset] Target Business:', business_id)
-
-    if (!userRecord || userRecord.business_id !== business_id) {
+    if (!userRecord || (userRecord as any).business_id !== business_id) {
         throw createError({ statusCode: 403, message: 'Forbidden' })
     }
 
-    // Perform Deletions
-    // Delete Transactions
     if (delete_transactions) {
         const { error: txnError } = await client
             .from('transactions')
@@ -49,7 +41,6 @@ export default defineEventHandler(async (event) => {
         if (cashError) throw createError({ statusCode: 500, message: cashError.message })
     }
 
-    // Delete Products
     if (delete_products) {
         const { error: prodError } = await client
             .from('products')

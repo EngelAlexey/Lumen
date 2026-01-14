@@ -38,7 +38,7 @@ export const useDashboard = () => {
             }
 
         } catch (e) {
-            console.error('Error calculating dashboard metrics:', e)
+
         } finally {
             loading.value = false
         }

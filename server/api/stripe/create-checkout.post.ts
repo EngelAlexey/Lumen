@@ -53,7 +53,6 @@ export default defineEventHandler(async (event) => {
 
     // Self-repair: Create business if missing
     if (!business) {
-        console.log('[CreateCheckout] Business not found, creating new record for user:', userId)
 
         // Ensure user exists in public.users to avoid FK constraint error
         const { data: publicUser } = await supabase
@@ -63,7 +62,6 @@ export default defineEventHandler(async (event) => {
             .maybeSingle()
 
         if (!publicUser) {
-            console.log('[CreateCheckout] User not found in public.users, creating stub...', userId)
             const { error: userError } = await supabase
                 .from('users')
                 .insert({
@@ -102,7 +100,6 @@ export default defineEventHandler(async (event) => {
         }
 
         businessId = newBusiness.id
-        console.log('[CreateCheckout] Created business:', businessId)
 
         // Link business to user
         await supabase
@@ -133,8 +130,6 @@ export default defineEventHandler(async (event) => {
             plan: plan,
             supabase_user_id: userId
         }
-        console.log('Creating Stripe session for customer:', customerId, 'Plan:', plan)
-        console.log('Intended Metadata:', metadata)
 
         const session = await stripe.checkout.sessions.create({
             customer: customerId,
@@ -162,7 +157,6 @@ export default defineEventHandler(async (event) => {
             cancel_url: `${origin}/pricing?canceled=true`,
         })
 
-        console.log('Stripe session created:', session.url)
         return { url: session.url }
     } catch (error: any) {
         console.error('Stripe Checkout Error:', error)

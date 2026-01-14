@@ -230,5 +230,356 @@
                 }
             }
         }
+    },
+    "customers": {
+        "title": "Customers",
+        "buttons": {
+            "new": "New Customer",
+            "edit": "Edit",
+            "delete": "Delete",
+            "save": "Save",
+            "cancel": "Cancel"
+        },
+        "columns": {
+            "full_name": "Name",
+            "phone": "Phone",
+            "email": "Email",
+            "address": "Address",
+            "actions": "Actions"
+        },
+        "placeholders": {
+            "search": "Search customer..."
+        },
+        "messages": {
+            "created": "Customer created",
+            "updated": "Customer updated",
+            "deleted": "Customer deleted",
+            "delete_confirm": "Are you sure you want to delete this customer?",
+            "error": "Error",
+            "empty_state": "No customers registered"
+        },
+        "modal": {
+            "title_new": "New Customer",
+            "title_edit": "Edit Customer"
+        },
+        "form": {
+            "labels": {
+                "full_name": "Full Name",
+                "phone": "Phone",
+                "email": "Email",
+                "address": "Address",
+                "notes": "Additional Notes"
+            },
+            "placeholders": {
+                "full_name": "E.g. John Doe",
+                "phone": "E.g. 8888-8888",
+                "email": "customer@example.com",
+                "address": "Delivery address",
+                "notes": "Preferences, important notes..."
+            },
+            "validation": {
+                "name_required": "Name is required",
+                "email_invalid": "Invalid email"
+            },
+            "buttons": {
+                "save_changes": "Save Changes",
+                "create": "Create Customer"
+            }
+        }
+    },
+    "products": {
+        "title": "Products",
+        "subtitle": "Mode: {mode}",
+        "stock_active": "Stock Control active",
+        "buttons": {
+            "new": "New Product",
+            "new_service": "New Service",
+            "new_dish": "New Dish",
+            "edit": "Edit",
+            "delete": "Delete",
+            "save": "Save",
+            "cancel": "Cancel",
+            "quick_add": "Add",
+            "quick_subtract": "Remove"
+        },
+        "columns": {
+            "name": "Product/Service",
+            "sku": "Code",
+            "category": "Category",
+            "price": "Price",
+            "cost": "Cost",
+            "stock": "Stock",
+            "expiration": "Expires",
+            "size": "Size",
+            "duration": "Minutes",
+            "actions": "Actions"
+        },
+        "categories": {
+            "general": "General",
+            "services": "Services",
+            "beverages": "Beverages",
+            "foods": "Foods",
+            "personal_care": "Personal Care",
+            "electronics": "Electronics",
+            "clothing": "Clothing",
+            "medicines": "Medicines"
+        },
+        "sector_fields": {
+            "duration_minutes": "Duration (min)",
+            "technician_name": "Technician/Manager",
+            "requires_appointment": "Requires Appointment",
+            "warranty_period": "Warranty (days)",
+            "brand": "Brand",
+            "model": "Model",
+            "min_stock": "Minimum Stock",
+            "is_vegan": "Vegan",
+            "is_gluten_free": "Gluten Free",
+            "is_spicy": "Spicy",
+            "preparation_time": "Prep Time (min)",
+            "expiration_date": "Expiration",
+            "batch_number": "Batch",
+            "laboratory": "Laboratory",
+            "prescription_required": "Requires Prescription",
+            "size": "Size",
+            "color": "Color",
+            "material": "Material"
+        },
+        "messages": {
+            "created": "Product created",
+            "updated": "Product updated",
+            "deleted": "Deleted",
+            "delete_confirm": "Are you sure you want to delete this item?",
+            "stock_updated": "Stock updated",
+            "error": "Error",
+            "empty_state": "No products registered",
+            "image_uploaded": "Image uploaded successfully",
+            "image_upload_error": "Error uploading image"
+        },
+        "modal": {
+            "title_new": "New Product",
+            "title_edit": "Edit Product",
+            "section_basic": "Basic Information",
+            "section_specific": "Specific Details"
+        },
+        "form": {
+            "labels": {
+                "name": "Name",
+                "price": "Price",
+                "cost": "Cost",
+                "stock": "Stock",
+                "sku": "Code/SKU",
+                "category": "Category",
+                "description": "Description",
+                "image": "Product Image"
+            },
+            "placeholders": {
+                "name": "E.g. Coca Cola 2.5L",
+                "name_service": "E.g. Preventive Maintenance",
+                "price": "0.00",
+                "sku": "Optional code",
+                "description": "Optional description..."
+            },
+            "validation": {
+                "name_required": "Name is required",
+                "name_min": "Minimum 2 characters"
+            }
+        }
+    },
+    "users": {
+        "title": "User Management",
+        "subtitle": "Manage business collaborators",
+        "buttons": {
+            "new": "New User",
+            "edit": "Edit",
+            "delete": "Delete",
+            "change_status": "Change status",
+            "delete_permanently": "Delete permanently"
+        },
+        "columns": {
+            "name": "Name",
+            "email": "Email",
+            "role": "Role",
+            "status": "Status",
+            "created_at": "Created",
+            "actions": "Actions"
+        },
+        "roles": {
+            "owner": "Owner",
+            "admin": "Administrator",
+            "employee": "Employee",
+            "all": "All roles"
+        },
+        "status": {
+            "active": "Active",
+            "inactive": "Inactive",
+            "all": "All statuses"
+        },
+        "filters": {
+            "role": "Filter by role",
+            "status": "Filter by status"
+        },
+        "placeholders": {
+            "search": "Search user..."
+        },
+        "messages": {
+            "created": "User created",
+            "updated": "User updated",
+            "status_changed": "User {action}ed",
+            "deleted": "User deleted",
+            "delete_confirm": "Do you want to {action} this user?",
+            "delete_permanently_confirm": "Are you sure you want to permanently delete? This action cannot be undone.",
+            "error": "Error",
+            "empty_state": "No users registered"
+        },
+        "modal": {
+            "title_new": "Create New User",
+            "title_edit": "Edit User",
+            "subtitle_edit": "Modify collaborator data"
+        },
+        "form": {
+            "labels": {
+                "full_name": "Full Name",
+                "email": "Email",
+                "password": "Password",
+                "role": "Role",
+                "status": "Status"
+            },
+            "placeholders": {
+                "full_name": "Collaborator name",
+                "email": "email@example.com",
+                "password": "Minimum 6 characters"
+            },
+            "validation": {
+                "name_required": "Name is required",
+                "email_required": "Email is required",
+                "email_invalid": "Invalid email",
+                "password_required": "Password is required",
+                "password_min": "Minimum 6 characters"
+            }
+        }
+    },
+    "transactions": {
+        "title": "Sales History",
+        "subtitle": "Manage all business transactions",
+        "buttons": {
+            "new": "New Sale",
+            "view": "View",
+            "pay": "Collect Payment",
+            "change_status": "Change Status",
+            "process_payment": "Process Payment",
+            "cancel": "Cancel"
+        },
+        "columns": {
+            "id": "ID",
+            "customer": "Customer",
+            "items": "Items",
+            "total": "Total",
+            "payment": "Payment",
+            "delivery": "Delivery",
+            "status": "Status",
+            "date": "Date",
+            "actions": "Actions"
+        },
+        "status": {
+            "pending": "Pending",
+            "paid": "Paid",
+            "delivered": "Delivered",
+            "cancelled": "Cancelled",
+            "all": "All statuses"
+        },
+        "delivery_status": {
+            "pending": "Pending",
+            "preparing": "Preparing",
+            "ready": "Ready",
+            "in_route": "In Route",
+            "delivered": "Delivered",
+            "cancelled": "Cancelled"
+        },
+        "payment_methods": {
+            "cash": "Cash",
+            "card": "Card",
+            "stripe": "Stripe (Online)",
+            "transfer": "Transfer",
+            "other": "Other"
+        },
+        "filters": {
+            "status": "Filter by status",
+            "search": "Search by customer or ID..."
+        },
+        "summary": {
+            "total_sales": "Total Sales",
+            "pending_transactions": "Pending Transactions",
+            "average_ticket": "Average Ticket",
+            "products_sold": "Products Sold"
+        },
+        "messages": {
+            "created": "Sale created",
+            "updated": "Sale updated",
+            "paid": "Payment registered",
+            "status_changed": "Status updated",
+            "cancelled": "Sale cancelled",
+            "error": "Error",
+            "empty_state": "No transactions registered",
+            "payment_required": "You must enter an amount",
+            "payment_exceeds": "Payment exceeds total"
+        },
+        "modal": {
+            "title_pay": "Collect Payment",
+            "title_status": "Change Delivery Status",
+            "subtitle_pay": "Register payment for this transaction",
+            "amount_due": "Amount due",
+            "amount_paid": "Amount paid",
+            "payment_method": "Payment method",
+            "delivery_status": "Delivery status",
+            "notes": "Additional notes"
+        },
+        "placeholders": {
+            "amount": "0.00",
+            "notes": "Optional notes..."
+        }
+    },
+    "common": {
+        "buttons": {
+            "save": "Save",
+            "cancel": "Cancel",
+            "edit": "Edit",
+            "delete": "Delete",
+            "create": "Create",
+            "new": "New",
+            "search": "Search",
+            "filter": "Filter",
+            "close": "Close",
+            "confirm": "Confirm",
+            "back": "Back"
+        },
+        "actions": {
+            "view_all": "View all",
+            "refresh": "Refresh"
+        },
+        "messages": {
+            "loading": "Loading...",
+            "no_data": "No data",
+            "error": "Error",
+            "success": "Success",
+            "created": "{item} created",
+            "updated": "{item} updated",
+            "deleted": "{item} deleted",
+            "delete_confirm": "Are you sure you want to delete this {item}?"
+        },
+        "payment_methods": {
+            "cash": "Cash",
+            "card": "Card",
+            "stripe": "Stripe (Online)",
+            "transfer": "Transfer",
+            "other": "Other"
+        },
+        "delivery_status": {
+            "pending": "Pending",
+            "preparing": "Preparing",
+            "ready": "Ready",
+            "in_route": "In Route",
+            "delivered": "Delivered",
+            "cancelled": "Cancelled"
+        }
     }
 }

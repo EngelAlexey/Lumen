@@ -19,25 +19,19 @@ export const useBusinessStore = defineStore('business', () => {
 
     // Actions
     const fetchSessionData = async (forceRefetch = false) => {
-        console.log('[BusinessStore] fetchSessionData called. Force:', forceRefetch)
-        console.log('[BusinessStore] Current User Ref:', user.value)
 
         // If already initialized and not forced, return early (Cache Hit)
         if (initialized.value && !forceRefetch && userProfile.value && business.value) {
-            console.log('[BusinessStore] Cache hit. Returning.')
             return
         }
 
         // Checking auth user
         if (!user.value?.id) {
-            console.warn('[BusinessStore] No user ID in store ref. Attempting to fetch user...')
             const { data: userData } = await useAsyncData('auth_user_check', () => supabase.auth.getUser())
 
             if (userData.value?.data?.user) {
-                console.log('[BusinessStore] User recovered via auth.getUser()')
                 // Manually set internal reference if needed, but we rely on fetching session next
             } else {
-                console.warn('[BusinessStore] Still no user. Resetting state.')
                 resetState()
                 return
             }
@@ -51,15 +45,12 @@ export const useBusinessStore = defineStore('business', () => {
             const response = await $fetch<{ user: User, business: Business | null }>(`/api/auth/session?t=${Date.now()}`)
             const { user, business: businessData } = response
 
-            console.log('[BusinessStore] Raw User Data from API:', user)
 
             userProfile.value = user as User
 
             if (businessData) {
-                console.log('[BusinessStore] Raw Business Data:', businessData)
                 business.value = businessData as Business
             } else {
-                console.log('[BusinessStore] No business linked to user.')
                 business.value = null
             }
 
@@ -67,7 +58,6 @@ export const useBusinessStore = defineStore('business', () => {
             subscriptionStatus.value = userProfile.value?.subscription_status || null
             onvoSubscriptionId.value = userProfile.value?.onvo_subscription_id || null
 
-            console.log('[BusinessStore] SubStatus from User:', subscriptionStatus.value)
 
             debugMsg.value = `Success: Active=${subscriptionStatus.value}, BusinessID=${business.value?.id}`
 
@@ -77,7 +67,7 @@ export const useBusinessStore = defineStore('business', () => {
             initialized.value = true
 
         } catch (error: any) {
-            console.error('[BusinessStore] Error fetching session:', error)
+
             debugMsg.value = `Error: ${error.message || error}`
             // If unauthorized, reset state
             // resetState() 
@@ -101,7 +91,6 @@ export const useBusinessStore = defineStore('business', () => {
                     filter: `id=eq.${user.value.id}`
                 },
                 async (payload: any) => {
-                    console.log('[SecurityWatchdog] User update received:', payload)
                     const newUser = payload.new as User
 
                     // Update local state
@@ -112,7 +101,6 @@ export const useBusinessStore = defineStore('business', () => {
                     // Check if deactivated
                     // Note: is_active might be null in DB types, treat falsy as inactive if explicit false
                     if (newUser.is_active === false) {
-                        console.warn('[SecurityWatchdog] User deactivated! Logging out...')
                         await supabase.auth.signOut()
                         resetState()
                         navigateTo('/login?error=account_disabled')
@@ -134,7 +122,6 @@ export const useBusinessStore = defineStore('business', () => {
                         filter: `id=eq.${business.value.id}`
                     },
                     (payload: any) => {
-                        console.log('[BusinessWatchdog] Business update received:', payload)
                         const newBusiness = payload.new as Business
                         business.value = newBusiness
                         // Removed subscription updates from here

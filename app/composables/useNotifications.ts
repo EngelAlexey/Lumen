@@ -43,7 +43,7 @@ export const useNotifications = () => {
                 )
             }
         } catch (e) {
-            console.error('Error fetching notifications:', e)
+
         } finally {
             loading.value = false
         }
@@ -109,7 +109,6 @@ export const useNotifications = () => {
 
         if (realtimeChannel) supabase.removeChannel(realtimeChannel)
 
-        console.log('[Notifications] Initializing Realtime Subscription...')
 
         realtimeChannel = supabase
             .channel('app-notifications')
@@ -122,7 +121,6 @@ export const useNotifications = () => {
                     filter: `business_id=eq.${profile.value.business_id}`
                 },
                 (payload: any) => {
-                    console.log('[Notifications] Realtime Notification Received:', payload)
                     const newNotif = payload.new as Notification
 
                     notifications.value.unshift(newNotif)
@@ -139,7 +137,6 @@ export const useNotifications = () => {
             .subscribe((status: string) => {
                 if (status === 'SUBSCRIBED') {
                     isSubscribed.value = true
-                    console.log('[Notifications] Subscribed successfully')
                 }
             })
     }

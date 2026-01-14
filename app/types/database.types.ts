@@ -83,6 +83,7 @@ export interface Database {
                     created_at: string
                     updated_at: string
                     metadata: any | null
+                    image_url: string | null
                 }
                 Insert: {
                     id?: string
@@ -100,6 +101,7 @@ export interface Database {
                     created_at?: string
                     updated_at?: string
                     metadata?: any | null
+                    image_url?: string | null
                 }
                 Update: Partial<Database['public']['Tables']['products']['Insert']>
             }
@@ -237,6 +239,7 @@ export interface Database {
             businesses: {
                 Row: {
                     id: string
+                    slug: string
                     name: string
                     business_type: string
                     owner_id: string | null
@@ -251,6 +254,7 @@ export interface Database {
                 }
                 Insert: {
                     id?: string
+                    slug: string
                     name: string
                     business_type: string
                     owner_id?: string | null
@@ -378,3 +382,4 @@ export type Business = Database['public']['Tables']['businesses']['Row']
 
 export type Customer = Database['public']['Tables']['customers']['Row']
 export type CustomerInsert = Database['public']['Tables']['customers']['Insert']
+// Force TS Update

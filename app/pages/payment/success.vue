@@ -7,8 +7,7 @@ definePageMeta({
 })
 
 onMounted(async () => {
-    // Poll for subscription activation due to webhook latency
-    const maxAttempts = 15 // 30 seconds max (2s interval)
+    const maxAttempts = 15
     let attempts = 0
 
     const pollSubscription = async () => {
@@ -16,22 +15,16 @@ onMounted(async () => {
         await store.fetchSessionData(true)
         
         if (store.isSubscriptionActive) {
-            console.log('[Success] Subscription activated, redirecting...')
             router.push('/dashboard')
             return
         }
 
         if (attempts >= maxAttempts) {
-            console.warn('[Success] Webhook timeout, redirecting anyway...')
             router.push('/dashboard')
             return
         }
-
-        // Retry after 2s
         setTimeout(pollSubscription, 2000)
     }
-
-    // Start polling immediate
     pollSubscription()
 })
 </script>

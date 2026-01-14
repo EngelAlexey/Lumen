@@ -5,7 +5,6 @@ export type UserRole = 'owner' | 'manager' | 'cashier' | 'staff'
 export const useRoles = () => {
     const userStore = useUserStore()
 
-    // Computed role from store
     const currentRole = computed<UserRole | null>(() => {
         return (userStore.profile?.role as UserRole) || null
     })
@@ -13,11 +12,7 @@ export const useRoles = () => {
     const isLoading = computed(() => userStore.loading)
 
     const fetchCurrentRole = async (userId?: string) => {
-        // If specific userId requested and it's not current user, we might need a separate call
-        // But for current user (99% of cases), we just ensure store is ready
-
         if (userId && userId !== userStore.user?.id) {
-            console.warn('[useRoles] Fetching role for other users not fully implemented in Singleton, returning null for safety')
             return null
         }
 

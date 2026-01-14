@@ -24,7 +24,6 @@ export default defineEventHandler(async (event) => {
     }
 
     const body = await readBody(event)
-    console.log('CREATE-PAYMENT: Received body:', body)
     const { transactionId } = body
 
     if (!transactionId) {
@@ -70,17 +69,10 @@ export default defineEventHandler(async (event) => {
     const userId = user.id || (user as any).sub
 
     if (!userId) {
-        console.error('User ID is missing on user object:', user)
         throw createError({ statusCode: 401, message: 'User ID missing' })
     }
 
     const { data: userData } = await adminClient.from('users').select('business_id').eq('id', userId).single() as { data: any }
-
-    console.log('Debug Create Payment:', {
-        userId,
-        userBusiness: userData?.business_id,
-        txnBusiness: transaction.business_id
-    })
 
     if (transaction.business_id !== userData?.business_id) {
         throw createError({ statusCode: 403, message: `Forbidden: TxnBiz ${transaction.business_id} != UserBiz ${userData?.business_id}` })
@@ -134,7 +126,6 @@ export default defineEventHandler(async (event) => {
         return { url: session.url }
 
     } catch (error: any) {
-        console.error('Stripe Session Error:', error)
         throw createError({
             statusCode: 500,
             message: error.message

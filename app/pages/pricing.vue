@@ -75,7 +75,6 @@ async function selectPlan(plan: any) {
   }
 
   loadingPlans.value[plan.name] = true
-  console.log('Sending subscription request:', { userId: user.value.id, plan: plan.name, price: plan.price }) // Debug
   try {
     const response = await $fetch<{ success: boolean; url?: string }>('/api/payments/create-subscription', {
       method: 'POST',
@@ -96,7 +95,7 @@ async function selectPlan(plan: any) {
       })
     }
   } catch (err: any) {
-    console.error('Subscription Error:', err)
+
     toast.add({
       title: t('pricing.errors.payment_title'),
       description: err.data?.message || t('pricing.errors.payment_desc'),

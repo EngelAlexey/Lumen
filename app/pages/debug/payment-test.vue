@@ -8,7 +8,7 @@ async function testPayment(plan: string) {
   result.value = 'Testing...'
   
   try {
-     const endpoint = '/api/payments/create-subscription' // Using the one from pricing.vue
+     const endpoint = '/api/payments/create-subscription' 
      
      const body = {
         userId: user.value?.id,
@@ -27,7 +27,7 @@ async function testPayment(plan: string) {
      
      if (response.url) {
         result.value += `\nRedirecting to: ${response.url}`
-        // window.location.href = response.url // manual trigger
+        window.location.href = response.url 
      } else {
         result.value += `\nNo URL returned!`
      }

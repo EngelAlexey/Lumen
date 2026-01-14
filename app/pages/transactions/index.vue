@@ -1,57 +1,43 @@
 <script setup lang="ts">
 import type { Transaction } from '~/types/database.types'
+import PageHeader from '@/components/common/PageHeader.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
+import StatusBadge from '@/components/common/StatusBadge.vue'
+import { transactionStatusOptions, transactionStatusColors, transactionStatusLabels } from '@/constants/statusOptions'
+import { formatCurrency, formatDateTime, formatPaymentMethod } from '@/utils/formatters'
 
-const { getTodayTransactions, getTransactions, payTransaction, updateTransactionStatus, fetchPaymentMethods, createStripePayment, loading, paymentMethods } = useTransactions()
+const { t } = useI18n()
+const { getTodayTransactions, getTransactions, payTransaction, updateTransactionStatus, fetchPaymentMethods, loading, paymentMethods } = useTransactions()
 const toast = useToast()
 
 const transactions = ref<Transaction[]>([])
-const statusFilter = ref<string | null>(null)
+const statusFilter = ref<'pending' | 'paid' | 'delivered' | 'cancelled' | null>(null)
 const expandedRow = ref<string | null>(null)
 
-// Modal para cobrar pendientes
-const showPayModal = ref(false)
+const showPayModal = ref(false) 
 const selectedTransaction = ref<any>(null)
 const selectedPaymentMethod = ref<string | null>(null)
 const paymentReference = ref('')
 
-// Modal para cambiar estado
 const showStatusModal = ref(false)
 const newStatus = ref<string | null>(null)
 
-const statusOptions = [
-  { label: 'Todos', value: null },
-  { label: 'Pagado', value: 'paid' },
-  { label: 'Pendiente', value: 'pending' },
-  { label: 'Entregado', value: 'delivered' },
-  { label: 'Cancelado', value: 'cancelled' }
-]
+const statusOptions = computed(() => transactionStatusOptions.map(opt => ({
+  label: opt.value === null ? t('transactions.status.all') : t(`transactions.status.${opt.value}`),
+  value: opt.value
+})))
 
-const statusColors: Record<string, 'warning' | 'info' | 'success' | 'error' | 'primary' | 'secondary' | 'neutral'> = {
-  pending: 'warning',
-  delivered: 'info',
-  paid: 'success',
-  cancelled: 'error'
-}
-
-const statusLabels: Record<string, string> = {
-  pending: 'Pendiente',
-  delivered: 'Entregado',
-  paid: 'Pagado',
-  cancelled: 'Cancelado'
-}
-
-const columns = [
+const columns = computed(() => [
   { accessorKey: 'transaction_number', header: 'Folio' },
-  { accessorKey: 'created_at', header: 'Hora' },
+  { accessorKey: 'created_at', header: t('transactions.columns.date') },
   { accessorKey: 'quantity', header: 'Cant.' },
-  { accessorKey: 'products', header: 'Productos' },
-  { accessorKey: 'total', header: 'Total' },
-  { accessorKey: 'status', header: 'Estado' },
-  { accessorKey: 'payment_methods', header: 'Método' },
+  { accessorKey: 'products', header: t('transactions.columns.items') },
+  { accessorKey: 'total', header: t('transactions.columns.total') },
+  { accessorKey: 'status', header: t('transactions.columns.status') },
+  { accessorKey: 'payment_methods', header: t('transactions.columns.payment') },
   { id: 'actions', header: '' }
-]
+])
 
-// Today's summary
 const summary = computed(() => {
   const paid = transactions.value.filter(t => t.status === 'paid')
   const pending = transactions.value.filter(t => t.status === 'pending')
@@ -93,7 +79,11 @@ function openStatusModal(transaction: any) {
 
 async function processPayment() {
   if (!selectedTransaction.value || !selectedPaymentMethod.value) {
-    toast.add({ title: 'Error', description: 'Selecciona un método de pago', color: 'error' })
+    toast.add({ 
+      title: t('transactions.messages.error'), 
+      description: t('transactions.messages.payment_required'), 
+      color: 'error' 
+    })
     return
   }
 
@@ -103,25 +93,39 @@ async function processPayment() {
   })
 
   if (result.success) {
-    toast.add({ title: 'Éxito', description: 'Cuenta cobrada correctamente', color: 'success' })
+    toast.add({ 
+      title: t('transactions.messages.paid'), 
+      color: 'success' 
+    })
     showPayModal.value = false
     loadTransactions()
   } else {
-    toast.add({ title: 'Error', description: result.error, color: 'error' })
+    toast.add({ 
+      title: t('transactions.messages.error'), 
+      description: result.error, 
+      color: 'error' 
+    })
   }
 }
 
-async function changeStatus() {
+async function updateStatus() {
   if (!selectedTransaction.value || !newStatus.value) return
-  
+
   const result = await updateTransactionStatus(selectedTransaction.value.id, newStatus.value as any)
-  
+
   if (result.success) {
-    toast.add({ title: 'Estado actualizado', color: 'success' })
+    toast.add({ 
+      title: t('transactions.messages.status_changed'), 
+      color: 'success' 
+    })
     showStatusModal.value = false
     loadTransactions()
   } else {
-    toast.add({ title: 'Error', description: result.error, color: 'error' })
+    toast.add({ 
+      title: t('transactions.messages.error'), 
+      description: result.error, 
+      color: 'error' 
+    })
   }
 }
 
@@ -186,25 +190,21 @@ function copyActiveLink() {
     toast.add({ title: 'Copiado', color: 'success' })
 }
 
-async function generatePaymentLink(transaction: any) {
-    if (!transaction) return
-    
-    // Optimistic UI update or separate loading state could be used here, but global loading is fine for now
-    const result = await createStripePayment(transaction.id)
-    
-    if (result.success && result.url) {
-        toast.add({ title: 'Link Generado', description: 'El link de pago ha sido creado exitosamente.', color: 'success' })
-        // Update local state immediately if possible, or reload
-        // transaction.stripe_payment_url = result.url // Modify local if reactive
-        loadTransactions() // Refresh to ensure backend sync
-    } else {
-        toast.add({ title: 'Error', description: result.error || 'No se pudo generar el link', color: 'error' })
-    }
-}
+// async function generatePaymentLink(transaction: any) {
+//     if (!transaction) return
+//     
+//     const result = await createStripePayment(transaction.id)
+//     
+//     if (result.success && result.url) {
+//         toast.add({ title: 'Link Generado', description: 'El link de pago ha sido creado exitosamente.', color: 'success' })
+//         loadTransactions()
+//     } else {
+//         toast.add({ title: 'Error', description: result.error || 'No se pudo generar el link', color: 'error' })
+//     }
+// }
 
 const realtimeConnected = ref(false)
 
-// Realtime setup function
 const setupRealtime = () => {
     if (realtimeChannel) {
         supabase.removeChannel(realtimeChannel)
@@ -212,18 +212,16 @@ const setupRealtime = () => {
         realtimeChannel = null
     }
     
-    console.log('[Realtime] Setting up subscription...')
     realtimeChannel = supabase
         .channel('transactions-list-live')
         .on(
             'postgres_changes',
             {
-                event: '*', // Listen to INSERT, UPDATE, DELETE
+                event: '*',
                 schema: 'public',
                 table: 'transactions'
             },
             (payload: any) => {
-                console.log('[Realtime] Event received:', payload)
                 if (payload.eventType === 'UPDATE' && payload.new.status === 'paid' && payload.old.status !== 'paid') {
                     toast.add({
                         title: '¡Pago Recibido!',
@@ -237,7 +235,6 @@ const setupRealtime = () => {
             }
         )
         .subscribe((status: string) => {
-            console.log('[Realtime] Status:', status)
             realtimeConnected.value = (status === 'SUBSCRIBED')
         })
 }
@@ -247,14 +244,11 @@ onMounted(async () => {
   fetchPaymentMethods()
   
   if (!profile.value) {
-      console.log('[Transactions] Profile missing, fetching...')
       await fetchProfile()
   }
   
-  // Always try to setup realtime on mount if we're client side
   setupRealtime()
   
-  // Watch profile just in case it changes business context (rare but possible)
   watch(() => profile.value, (newVal, oldVal) => {
       if (newVal?.id !== oldVal?.id) {
           setupRealtime()
@@ -399,18 +393,12 @@ onUnmounted(() => {
                 :class="['paid', 'cancelled'].includes(row.original.status) ? 'cursor-default' : 'cursor-pointer hover:opacity-80'"
                 @click="!['paid', 'cancelled'].includes(row.original.status) && openStatusModal(row.original)"
               >
-                <UBadge 
-                  :color="statusColors[row.original.status] || 'neutral'" 
-                  variant="subtle"
-                >
-                  {{ statusLabels[row.original.status] || row.original.status }}
-                </UBadge>
+                <StatusBadge 
+                  :status="row.original.status" 
+                  type="transaction"
+                />
               </button>
-              
-              <!-- Only show delivery status if it's explicitly set to something interesting 
-                   AND distinct from the main status. 
-                   If status is 'pending', delivery 'pending' is redundant.
-              -->
+
               <UBadge 
                 v-if="row.original.delivery_status && 
                       row.original.delivery_status !== 'delivered' && 
@@ -463,6 +451,7 @@ onUnmounted(() => {
                 />
             </UTooltip>
             
+            <!-- Commented out - generatePaymentLink function not available
             <UTooltip v-else-if="row.original.status === 'pending'" text="Generar Link de Pago">
                 <UButton 
                     variant="ghost" 
@@ -472,6 +461,7 @@ onUnmounted(() => {
                     @click="generatePaymentLink(row.original)"
                 />
             </UTooltip>
+            -->
             
             <!-- Hide edit status button if final state -->
             <UButton 
@@ -602,10 +592,11 @@ onUnmounted(() => {
               <span class="font-mono font-bold">{{ selectedTransaction.transaction_number }}</span>
             </div>
             <div class="flex justify-between">
-              <span class="text-gray-600">Estado actual:</span>
-              <UBadge :color="statusColors[selectedTransaction.status]" variant="subtle">
-                {{ statusLabels[selectedTransaction.status] }}
-              </UBadge>
+              <span class="text-gray-600">{{ t('transactions.columns.status') }}:</span>
+              <StatusBadge 
+                :status="selectedTransaction.status" 
+                type="transaction"
+              />
             </div>
           </div>
 
@@ -659,7 +650,7 @@ onUnmounted(() => {
               color="primary" 
               class="flex-1" 
               :disabled="!newStatus || newStatus === selectedTransaction?.status"
-              @click="changeStatus"
+              @click="updateStatus"
             >
               Guardar Cambio
             </UButton>

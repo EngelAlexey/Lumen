@@ -3,7 +3,6 @@ export const useAuth = () => {
     const userStore = useUserStore()
     const router = useRouter()
 
-    // Expose store state directly
     const { user, profile, business, loading, error } = storeToRefs(userStore)
 
     const getBaseUrl = () => {
@@ -29,7 +28,6 @@ export const useAuth = () => {
 
             if (authError) throw authError
 
-            // Strict Verification: Waif for store to be ready
             await userStore.fetchProfile()
 
             return { success: true, ...data }
@@ -107,7 +105,6 @@ export const useAuth = () => {
 
             if (updateError) throw updateError
 
-            // Store's realtime subscription will auto-update, but we can force it 
             await userStore.fetchProfile()
 
             return { success: true }
@@ -131,7 +128,6 @@ export const useAuth = () => {
 
             if (updateError) throw updateError
 
-            // Store's realtime subscription will auto-update
             return { success: true }
         } catch (e: any) {
             return { success: false, error: e.message }
@@ -140,7 +136,6 @@ export const useAuth = () => {
         }
     }
 
-    // Proxy other methods that don't need significant state interaction
     const resendConfirmation = async (email: string) => {
         const { error: err } = await client.auth.resend({
             type: 'signup',
@@ -165,7 +160,6 @@ export const useAuth = () => {
         return true
     }
 
-    // Legacy support wrappers
     const ensureBusinessExists = async () => {
         if (!userStore.initialized) {
             await userStore.initialize()
@@ -173,31 +167,27 @@ export const useAuth = () => {
     }
 
     const initSessionKeeper = () => {
-        // Keeps session alive, store handles data sync
-        // ... (keep heartbeat logic if needed, or rely on Supabase client auto-refresh)
     }
 
     return {
-        // State (Proxied from Store)
         user,
         profile,
         business,
         loading,
         error,
 
-        // Actions
         login,
         register,
         logout,
         updateProfile,
         updateBusiness,
 
-        // Utils
         resendConfirmation,
         forgotPassword,
         updatePassword,
         ensureBusinessExists,
         getBusinessType: () => business.value?.business_type,
-        initSessionKeeper
+        initSessionKeeper,
+        fetchProfile: userStore.fetchProfile
     }
 }

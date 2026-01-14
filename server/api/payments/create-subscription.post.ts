@@ -4,14 +4,12 @@ import { useOnvo } from '../../utils/onvo'
 
 export default defineEventHandler(async (event) => {
     const body = await readBody(event)
-    console.log('[CreateSubscription] Request Body:', body)
     const { plan, priceId, billingCycleAnchor } = body
 
     const authUser = await serverSupabaseUser(event).catch(() => null)
     let userId = authUser?.id
 
     if (!userId && (body as any).userId) {
-        console.log('[CreateSubscription] Using body userId (Fallback):', (body as any).userId)
         userId = (body as any).userId
     }
 
@@ -58,7 +56,6 @@ export default defineEventHandler(async (event) => {
 
     if (!onvoCustomerId) {
         try {
-            console.log('[CreateSubscription] Creating Onvo customer for:', user.email)
             const customer = await onvo.createCustomer({
                 name: accountName,
                 email: user.email || '',
@@ -77,7 +74,6 @@ export default defineEventHandler(async (event) => {
 
     try {
         if (plan === 'solo') {
-            console.log('[CreateSubscription] Activating free plan internally for:', accountName)
 
             await (client.from('users') as any)
                 .update({
@@ -93,7 +89,6 @@ export default defineEventHandler(async (event) => {
             }
         }
 
-        console.log('[CreateSubscription] Creating subscription for customer:', onvoCustomerId)
         const startupPriceId = config.onvoPriceStartup as string
 
         let items = []
@@ -136,7 +131,6 @@ export default defineEventHandler(async (event) => {
         }
 
     } catch (error: any) {
-        console.error('[CreateSubscription] Error:', error)
         throw createError({
             statusCode: 500,
             message: error.message || 'Failed to create subscription'

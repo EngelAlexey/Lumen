@@ -65,7 +65,6 @@
 <script setup lang="ts">
 const { navigation, config } = useBusinessConfig()
 
-// Props currently empty as we reuse composables, but ready for extension
 const props = defineProps<{
   userProfile?: { full_name: string, email: string } | null
   user?: any
@@ -74,7 +73,6 @@ const props = defineProps<{
 
 const emit = defineEmits(['logout'])
 
-// Helper for initials
 const userInitials = computed(() => {
   if (props.userProfile?.full_name) {
     const names = props.userProfile.full_name.split(' ')
