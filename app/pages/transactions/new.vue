@@ -2,11 +2,11 @@
 import type { Product } from '~/types/database.types'
 
 // Composables
-const { currentSession, fetchCurrentSession, loading: sessionLoading, fetchPaymentMethods, paymentMethods } = useCashRegister()
+const { currentSession, fetchCurrentSession, fetchPaymentMethods, paymentMethods } =
+  useCashRegister()
 const { getProducts, subscribeToStockUpdates } = useProducts()
-const { createTransaction, createStripePayment, loading: transactionLoading } = useTransactions()
-const { labels, features, loadBusinessType } = useBusinessConfig()
-const businessStore = useBusinessStore()
+const { createTransaction, createOnvoPayment, loading: transactionLoading } = useTransactions()
+const { labels, features, transactionsConfig } = useBusinessConfig()
 const cart = useCart()
 const toast = useToast()
 const router = useRouter()
@@ -51,15 +51,15 @@ async function searchCustomers(query: string) {
   searchingCustomers.value = false
 }
 
-watch(customerSearchQuery, (val) => {
-    searchCustomers(val)
+watch(customerSearchQuery, val => {
+  searchCustomers(val)
 })
 
 function selectCustomer(customer: any) {
-    customerId.value = customer.id
-    customerName.value = customer.full_name
-    customerSearchQuery.value = customer.full_name
-    customerSearchResults.value = []
+  customerId.value = customer.id
+  customerName.value = customer.full_name
+  customerSearchQuery.value = customer.full_name
+  customerSearchResults.value = []
 }
 
 // Computed: Filtered products
@@ -68,10 +68,11 @@ const filteredProducts = computed(() => {
 
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase()
-    result = result.filter(p =>
-      p.name.toLowerCase().includes(query) ||
-      p.sku?.toLowerCase().includes(query) ||
-      p.barcode?.toLowerCase().includes(query)
+    result = result.filter(
+      p =>
+        p.name.toLowerCase().includes(query) ||
+        p.sku?.toLowerCase().includes(query) ||
+        p.barcode?.toLowerCase().includes(query)
     )
   }
 
@@ -100,8 +101,15 @@ onMounted(async () => {
   // Load session first
   await fetchCurrentSession()
 
-  // If no open session, redirect to cash register
-  if (!currentSession.value) {
+  // ...
+
+  // Check if business requires cash session
+  const requireCashSession = computed(() => {
+    return transactionsConfig.value?.requireCashSession || false
+  })
+
+  // If no open session AND required, redirect to cash register
+  if (requireCashSession.value && !currentSession.value) {
     toast.add({
       title: 'Caja Cerrada',
       description: 'Debes abrir caja antes de realizar ventas',
@@ -112,28 +120,25 @@ onMounted(async () => {
   }
 
   // Load products and payment methods
-  await Promise.all([
-    loadProducts(),
-    fetchPaymentMethods()
-  ])
-  
+  await Promise.all([loadProducts(), fetchPaymentMethods()])
+
   // Realtime Stock Subscription
   if (currentSession.value?.business_id) {
-     subscribeToStockUpdates(currentSession.value.business_id, (payload) => {
-        const newItem = payload.new as Product | null
-        if (newItem && newItem.id) {
-           const idx = products.value.findIndex(p => p.id === newItem.id)
-           if (idx !== -1) {
-              // Update stock locally
-              products.value[idx].stock_quantity = newItem.stock_quantity
-              
-              // Optional: Toast for low stock?
-              if ((newItem.stock_quantity || 0) <= 0) {
-                 // toast.add({ title: 'Agotado', description: `${products.value[idx].name} se ha agotado`, color: 'orange' })
-              }
-           }
+    subscribeToStockUpdates(currentSession.value.business_id, payload => {
+      const newItem = payload.new as Product | null
+      if (newItem && newItem.id) {
+        const idx = products.value.findIndex(p => p.id === newItem.id)
+        if (idx !== -1) {
+          // Update stock locally
+          products.value[idx].stock_quantity = newItem?.stock_quantity
+
+          // Optional: Toast for low stock?
+          if ((newItem?.stock_quantity || 0) <= 0) {
+            // toast.add({ title: 'Agotado', description: `${products.value[idx].name} se ha agotado`, color: 'orange' })
+          }
         }
-     })
+      }
+    })
   }
 
   // Pre-select cash as default
@@ -158,34 +163,34 @@ async function loadExistingOrder(orderId: string) {
   // Let's iterate on useTransactions later. For now, simulate or fetch match.
   // Wait, I can't easily fetch single transaction details with items without a helper.
   // I will assume getTransactions returns items? The current implementation of getTransactions
-  // does select *, transaction_items(...) ? Let's check useTransactions. 
+  // does select *, transaction_items(...) ? Let's check useTransactions.
   // If not, I'll need to update useTransactions.
   // Let's assume for this step I will implement minimal loading logic here.
-  
+
   const client = useSupabaseClient()
-  const { data, error } = await client
+  const { data } = await client
     .from('transactions')
     .select('*, transaction_items(*, product:products(*))')
     .eq('id', orderId)
     .single()
 
   if (data) {
-     const order = data as any
-     tableNumber.value = order.table_number || ''
-     customerName.value = order.customer_name || ''
-     notes.value = order.notes || ''
-     
-     // Hydrate Cart
-     cart.clearCart()
-     if (order.transaction_items) {
-        order.transaction_items.forEach((item: any) => {
-           if (item.product) {
-              cart.addItem(item.product, item.quantity)
-           }
-        })
-     }
-     
-     toast.add({ title: 'Orden Cargada', description: `Mesa ${order.table_number}`, color: 'info' })
+    const order = data as any
+    tableNumber.value = order.table_number || ''
+    customerName.value = order.customer_name || ''
+    notes.value = order.notes || ''
+
+    // Hydrate Cart
+    cart.clearCart()
+    if (order.transaction_items) {
+      order.transaction_items.forEach((item: any) => {
+        if (item.product) {
+          cart.addItem(item.product, item.quantity)
+        }
+      })
+    }
+
+    toast.add({ title: 'Orden Cargada', description: `Mesa ${order.table_number}`, color: 'info' })
   }
 }
 
@@ -219,7 +224,11 @@ function handleProductClick(product: Product) {
 
 function openPaymentModal() {
   if (cart.isEmpty) {
-    toast.add({ title: 'Carrito Vacío', description: 'Agrega productos antes de cobrar', color: 'warning' })
+    toast.add({
+      title: 'Carrito Vacío',
+      description: 'Agrega productos antes de cobrar',
+      color: 'warning'
+    })
     return
   }
   showPaymentModal.value = true
@@ -263,7 +272,7 @@ async function processPayment() {
     tableNumber.value = ''
     notes.value = ''
     paymentReference.value = ''
-    
+
     // Reload products to update stock
     await loadProducts()
   } else {
@@ -274,7 +283,11 @@ async function processPayment() {
 // Guardar como cuenta pendiente (para restaurantes)
 async function savePendingOrder() {
   if (cart.isEmpty) {
-    toast.add({ title: 'Carrito Vacío', description: 'Agrega productos antes de guardar', color: 'warning' })
+    toast.add({
+      title: 'Carrito Vacío',
+      description: 'Agrega productos antes de guardar',
+      color: 'warning'
+    })
     return
   }
 
@@ -293,10 +306,10 @@ async function savePendingOrder() {
   })
 
   if (result.success) {
-    toast.add({ 
-      title: 'Cuenta Guardada', 
-      description: `Folio: ${result.transactionNumber}. Podrás cobrar después.`, 
-      color: 'success' 
+    toast.add({
+      title: 'Cuenta Guardada',
+      description: `Folio: ${result.transactionNumber}. Podrás cobrar después.`,
+      color: 'success'
     })
 
     // Reset form
@@ -304,7 +317,7 @@ async function savePendingOrder() {
     customerName.value = ''
     tableNumber.value = ''
     notes.value = ''
-    
+
     // Reload products to update stock
     await loadProducts()
   } else {
@@ -326,10 +339,14 @@ function continueSelling() {
 // Generar Pago Online (Stripe)
 async function generateOnlinePayment() {
   if (cart.isEmpty) {
-    toast.add({ title: 'Carrito Vacío', description: 'Agrega productos antes de generar link', color: 'warning' })
+    toast.add({
+      title: 'Carrito Vacío',
+      description: 'Agrega productos antes de generar link',
+      color: 'warning'
+    })
     return
   }
-  
+
   if (!currentSession.value?.id) {
     toast.add({ title: 'Error', description: 'No hay sesión de caja activa', color: 'error' })
     return
@@ -353,36 +370,32 @@ async function generateOnlinePayment() {
     return
   }
 
-  // 2. Generar Link de Stripe
-  const stripeResult = await createStripePayment(result.transactionId)
-  
-  if (stripeResult.success && stripeResult.url) {
-      stripeLink.value = stripeResult.url
-      lastTransactionNumber.value = result.transactionNumber || ''
-      showStripeModal.value = true
-      
-      // Limpiar UI principal (la orden ya existe)
-      cart.clearCart()
-      customerName.value = ''
-      customerId.value = null
-      customerSearchQuery.value = ''
-      tableNumber.value = ''
-      notes.value = ''
+  // 2. Generar Link de Pago (Onvo)
+  const paymentResult = await createOnvoPayment(result.transactionId)
+
+  if (paymentResult.success && paymentResult.url) {
+    stripeLink.value = paymentResult.url
+    lastTransactionNumber.value = result.transactionNumber || ''
+    showStripeModal.value = true
+
+    // Limpiar UI principal (la orden ya existe)
+    cart.clearCart()
+    customerName.value = ''
+    customerId.value = null
+    customerSearchQuery.value = ''
+    tableNumber.value = ''
+    notes.value = ''
   } else {
-      toast.add({ title: 'Error Stripe', description: stripeResult.error, color: 'error' })
+    toast.add({ title: 'Error Pago Online', description: paymentResult.error, color: 'error' })
   }
 }
 
-
 const { copy } = useClipboard()
-
-
 
 // Wrapper para forzar actualización (v3)
 async function handleCopyLink() {
-    await copy(stripeLink.value, 'Link copiado al portapapeles')
+  await copy(stripeLink.value, 'Link copiado al portapapeles')
 }
-
 
 function selectText(event: MouseEvent) {
   const target = event.target as HTMLElement
@@ -410,8 +423,14 @@ function goToHistory() {
         <p class="text-sm text-gray-500">
           Caja: <span class="font-medium text-green-600">Abierta</span>
           <span class="mx-2">•</span>
-          Inicio: {{ currentSession?.opening_cash ? `₡${currentSession.opening_cash.toLocaleString()}` : '-' }}
-          <span v-if="tableNumber" class="ml-4 px-2 py-1 bg-indigo-100 text-indigo-700 rounded-md font-bold">
+          Inicio:
+          {{
+            currentSession?.opening_cash ? `₡${currentSession.opening_cash.toLocaleString()}` : '-'
+          }}
+          <span
+            v-if="tableNumber"
+            class="ml-4 px-2 py-1 bg-indigo-100 text-indigo-700 rounded-md font-bold"
+          >
             Mesa {{ tableNumber }}
           </span>
         </p>
@@ -441,38 +460,50 @@ function goToHistory() {
           />
           <USelectMenu
             v-model="selectedCategory"
-            :items="[{ label: 'Todas', value: null }, ...categories.map(c => ({ label: c, value: c }))]"
+            :items="[
+              { label: 'Todas', value: null },
+              ...categories.map(c => ({ label: c, value: c }))
+            ]"
             value-key="value"
             placeholder="Categoría"
             class="w-48"
           />
         </div>
-        
+
         <!-- Customer Selector (Quick) -->
         <div class="mb-4 relative z-10">
-            <div class="flex gap-2">
-                <div class="relative flex-1">
-                    <UInput
-                        v-model="customerSearchQuery"
-                        placeholder="Buscar Cliente (Nombre/Tel)"
-                        icon="i-heroicons-user"
-                        :loading="searchingCustomers"
-                    />
-                    <!-- Results Dropdown -->
-                    <div v-if="customerSearchResults.length > 0" class="absolute top-full left-0 w-full bg-white dark:bg-gray-800 shadow-xl border border-gray-200 dark:border-gray-700 rounded-lg mt-1 overflow-hidden">
-                        <button
-                            v-for="c in customerSearchResults"
-                            :key="c.id"
-                            class="w-full text-left px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 flex justify-between items-center"
-                            @click="selectCustomer(c)"
-                        >
-                            <span class="font-medium text-sm">{{ c.full_name }}</span>
-                            <span class="text-xs text-gray-500">{{ c.email }}</span>
-                        </button>
-                    </div>
-                </div>
-                <UButton v-if="customerId" color="neutral" icon="i-heroicons-x-mark" variant="ghost" @click="selectCustomer({id: null, full_name: ''})" />
+          <div class="flex gap-2">
+            <div class="relative flex-1">
+              <UInput
+                v-model="customerSearchQuery"
+                placeholder="Buscar Cliente (Nombre/Tel)"
+                icon="i-heroicons-user"
+                :loading="searchingCustomers"
+              />
+              <!-- Results Dropdown -->
+              <div
+                v-if="customerSearchResults.length > 0"
+                class="absolute top-full left-0 w-full bg-white dark:bg-gray-800 shadow-xl border border-gray-200 dark:border-gray-700 rounded-lg mt-1 overflow-hidden"
+              >
+                <button
+                  v-for="c in customerSearchResults"
+                  :key="c.id"
+                  class="w-full text-left px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 flex justify-between items-center"
+                  @click="selectCustomer(c)"
+                >
+                  <span class="font-medium text-sm">{{ c.full_name }}</span>
+                  <span class="text-xs text-gray-500">{{ c.email }}</span>
+                </button>
+              </div>
             </div>
+            <UButton
+              v-if="customerId"
+              color="neutral"
+              icon="i-heroicons-x-mark"
+              variant="ghost"
+              @click="selectCustomer({ id: null, full_name: '' })"
+            />
+          </div>
         </div>
 
         <!-- Products Grid -->
@@ -492,20 +523,29 @@ function goToHistory() {
               :key="product.id"
               class="group bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700 text-left transition-all hover:shadow-lg hover:border-primary-300 dark:hover:border-primary-600 hover:scale-[1.02] active:scale-[0.98]"
               :class="{
-                'opacity-50 cursor-not-allowed': !product.is_service && (product.stock_quantity || 0) <= 0
+                'opacity-50 cursor-not-allowed':
+                  !product.is_service && (product.stock_quantity || 0) <= 0
               }"
               @click="handleProductClick(product)"
             >
               <div class="flex justify-between items-start mb-2">
-                <span class="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
+                <span
+                  class="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
+                >
                   {{ product.category || 'General' }}
                 </span>
-                <span v-if="!product.is_service" class="text-xs font-mono" :class="(product.stock_quantity || 0) < 5 ? 'text-red-500' : 'text-gray-400'">
+                <span
+                  v-if="!product.is_service"
+                  class="text-xs font-mono"
+                  :class="(product.stock_quantity || 0) < 5 ? 'text-red-500' : 'text-gray-400'"
+                >
                   {{ product.stock_quantity || 0 }}
                 </span>
                 <UIcon v-else name="i-heroicons-wrench-screwdriver" class="w-4 h-4 text-blue-500" />
               </div>
-              <h3 class="font-semibold text-gray-900 dark:text-white truncate group-hover:text-primary-600">
+              <h3
+                class="font-semibold text-gray-900 dark:text-white truncate group-hover:text-primary-600"
+              >
                 {{ product.name }}
               </h3>
               <p class="text-lg font-bold text-primary-600 mt-1">
@@ -517,7 +557,9 @@ function goToHistory() {
       </div>
 
       <!-- Right: Cart Panel -->
-      <div class="w-96 flex-shrink-0 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 flex flex-col">
+      <div
+        class="w-96 flex-shrink-0 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 flex flex-col"
+      >
         <!-- Cart Header -->
         <div class="p-4 border-b border-gray-200 dark:border-gray-700">
           <div class="flex justify-between items-center">
@@ -525,7 +567,7 @@ function goToHistory() {
               <UIcon name="i-heroicons-shopping-bag" class="w-5 h-5" />
               Carrito
             </h2>
-            <UBadge v-if="cart.itemCount > 0" color="primary">{{ cart.itemCount }} items</UBadge>
+            <UBadge v-if="cart.itemCount > 0" color="primary"> {{ cart.itemCount }} items </UBadge>
           </div>
         </div>
 
@@ -544,8 +586,12 @@ function goToHistory() {
             >
               <div class="flex justify-between items-start mb-2">
                 <div class="flex-1 min-w-0">
-                  <h4 class="font-medium text-gray-900 dark:text-white truncate">{{ item.product.name }}</h4>
-                  <p class="text-sm text-gray-500">₡{{ item.product.price.toLocaleString() }} c/u</p>
+                  <h4 class="font-medium text-gray-900 dark:text-white truncate">
+                    {{ item.product.name }}
+                  </h4>
+                  <p class="text-sm text-gray-500">
+                    ₡{{ item.product.price.toLocaleString() }} c/u
+                  </p>
                 </div>
                 <UButton
                   color="error"
@@ -591,37 +637,39 @@ function goToHistory() {
             <span>Descuentos</span>
             <span>-₡{{ cart.totalDiscount.toLocaleString() }}</span>
           </div>
-          <div class="flex justify-between text-xl font-bold text-gray-900 dark:text-white pt-2 border-t border-gray-200 dark:border-gray-600">
+          <div
+            class="flex justify-between text-xl font-bold text-gray-900 dark:text-white pt-2 border-t border-gray-200 dark:border-gray-600"
+          >
             <span>TOTAL</span>
             <span class="text-primary-600">₡{{ cart.total.toLocaleString() }}</span>
           </div>
 
           <div class="grid grid-cols-2 gap-3 mt-4">
             <UButton
-                block
-                size="xl"
-                color="neutral"
-                variant="solid"
-                icon="i-heroicons-globe-alt"
-                :loading="transactionLoading"
-                :disabled="cart.isEmpty"
-                @click="generateOnlinePayment"
+              block
+              size="xl"
+              color="neutral"
+              variant="solid"
+              icon="i-heroicons-globe-alt"
+              :loading="transactionLoading"
+              :disabled="cart.isEmpty"
+              @click="generateOnlinePayment"
             >
-                Pago Online
+              Pago Online
             </UButton>
-            
+
             <UButton
-                block
-                size="xl"
-                color="primary"
-                icon="i-heroicons-banknotes"
-                :disabled="cart.isEmpty"
-                @click="openPaymentModal"
+              block
+              size="xl"
+              color="primary"
+              icon="i-heroicons-banknotes"
+              :disabled="cart.isEmpty"
+              @click="openPaymentModal"
             >
-                Cobrar ₡{{ cart.total.toLocaleString() }}
+              Cobrar ₡{{ cart.total.toLocaleString() }}
             </UButton>
           </div>
-          
+
           <!-- Botón para guardar como cuenta pendiente (solo si feature pendingOrders está activo) -->
           <UButton
             v-if="features.pendingOrders"
@@ -655,24 +703,41 @@ function goToHistory() {
                 :key="method.id"
                 type="button"
                 class="p-4 rounded-lg border-2 transition-all text-center"
-                :class="selectedPaymentMethod === method.id
-                  ? 'border-primary-500 bg-primary-50 dark:bg-primary-950/30'
-                  : 'border-gray-200 dark:border-gray-700 hover:border-primary-300'"
+                :class="
+                  selectedPaymentMethod === method.id
+                    ? 'border-primary-500 bg-primary-50 dark:bg-primary-950/30'
+                    : 'border-gray-200 dark:border-gray-700 hover:border-primary-300'
+                "
                 @click="selectedPaymentMethod = method.id"
               >
                 <UIcon
-                  :name="method.code === 'cash' ? 'i-heroicons-banknotes' : method.code === 'card' ? 'i-heroicons-credit-card' : 'i-heroicons-device-phone-mobile'"
+                  :name="
+                    method.code === 'cash'
+                      ? 'i-heroicons-banknotes'
+                      : method.code === 'card'
+                        ? 'i-heroicons-credit-card'
+                        : 'i-heroicons-device-phone-mobile'
+                  "
                   class="w-6 h-6 mx-auto mb-1"
-                  :class="selectedPaymentMethod === method.id ? 'text-primary-600' : 'text-gray-400'"
+                  :class="
+                    selectedPaymentMethod === method.id ? 'text-primary-600' : 'text-gray-400'
+                  "
                 />
-                <span class="text-sm font-medium" :class="selectedPaymentMethod === method.id ? 'text-primary-600' : ''">
+                <span
+                  class="text-sm font-medium"
+                  :class="selectedPaymentMethod === method.id ? 'text-primary-600' : ''"
+                >
                   {{ method.name }}
                 </span>
               </button>
             </div>
           </UFormField>
 
-          <UFormField v-if="requiresReference" label="Referencia / Últimos 4 dígitos" name="reference">
+          <UFormField
+            v-if="requiresReference"
+            label="Referencia / Últimos 4 dígitos"
+            name="reference"
+          >
             <UInput v-model="paymentReference" placeholder="Ej: 1234" size="lg" />
           </UFormField>
 
@@ -707,7 +772,9 @@ function goToHistory() {
     <UModal v-model:open="showSuccessModal" :dismissible="false">
       <template #body>
         <div class="p-8 text-center">
-          <div class="w-20 h-20 mx-auto mb-4 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+          <div
+            class="w-20 h-20 mx-auto mb-4 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center"
+          >
             <UIcon name="i-heroicons-check-circle" class="w-12 h-12 text-green-500" />
           </div>
           <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">¡Venta Exitosa!</h3>
@@ -715,11 +782,18 @@ function goToHistory() {
 
           <div class="bg-gray-100 dark:bg-gray-800 rounded-lg p-4 mb-6">
             <p class="text-sm text-gray-500">Número de Folio</p>
-            <p class="text-2xl font-mono font-bold text-primary-600">{{ lastTransactionNumber }}</p>
+            <p class="text-2xl font-mono font-bold text-primary-600">
+              {{ lastTransactionNumber }}
+            </p>
           </div>
 
           <div class="flex gap-3 justify-center">
-            <UButton color="neutral" variant="soft" icon="i-heroicons-document-text" @click="goToHistory">
+            <UButton
+              color="neutral"
+              variant="soft"
+              icon="i-heroicons-document-text"
+              @click="goToHistory"
+            >
               Ver Historial
             </UButton>
             <UButton color="primary" icon="i-heroicons-plus" @click="continueSelling">
@@ -729,63 +803,74 @@ function goToHistory() {
         </div>
       </template>
     </UModal>
-  </div>
 
     <!-- Stripe Link Modal -->
     <UModal v-model:open="showStripeModal">
       <template #body>
         <div class="p-6 space-y-4 text-center">
-            <div class="w-16 h-16 mx-auto bg-indigo-100 rounded-full flex items-center justify-center">
-                <UIcon name="i-heroicons-qr-code" class="w-8 h-8 text-indigo-600" />
-            </div>
-            
-            <h3 class="text-xl font-bold">Pago Online Generado</h3>
-            <p class="text-gray-500 text-sm">Comparte este enlace con el cliente para completar el pago.</p>
-            
-            <div class="p-3 bg-gray-50 dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 break-all text-sm font-mono text-gray-600 mb-4 cursor-text select-all" @click="selectText">
-                {{ stripeLink }}
-            </div>
+          <div
+            class="w-16 h-16 mx-auto bg-indigo-100 rounded-full flex items-center justify-center"
+          >
+            <UIcon name="i-heroicons-qr-code" class="w-8 h-8 text-indigo-600" />
+          </div>
 
-            <!-- Manual select input fallback -->
-             <div class="mb-4">
-                <UInput
-                    :model-value="stripeLink"
-                    readonly
-                    icon="i-heroicons-link"
-                    :ui="{ trailing: 'pointer-events-auto' }"
-                >
-                    <template #trailing>
-                        <UButton
-                            color="neutral"
-                            variant="link"
-                            icon="i-heroicons-clipboard-document"
-                            :padded="false"
-                            @click="handleCopyLink"
-                        />
-                    </template>
-                </UInput>
-             </div>
-            
-            <div class="flex gap-2 justify-center">
-                 <UButton color="neutral" icon="i-heroicons-clipboard" @click="handleCopyLink">
-                    Copiar Link
-                 </UButton>
-                 <a :href="`https://wa.me/?text=Hola, aquí tienes tu link de pago: ${encodeURIComponent(stripeLink)}`" target="_blank" class="no-underline">
-                     <UButton color="neutral" icon="i-heroicons-chat-bubble-left-right">
-                        WhatsApp
-                     </UButton>
-                 </a>
-            </div>
-            
-            <div class="pt-4 border-t border-gray-100 mt-4">
-                <p class="text-xs text-gray-400 mb-2">Orden #{{ lastTransactionNumber }} - Pendiente de Pago</p>
-                <UButton block variant="ghost" color="neutral" @click="showStripeModal = false">
-                    Cerrar y Ver Historial
-                </UButton>
-            </div>
+          <h3 class="text-xl font-bold">Pago Online Generado</h3>
+          <p class="text-gray-500 text-sm">
+            Comparte este enlace con el cliente para completar el pago.
+          </p>
+
+          <div
+            class="p-3 bg-gray-50 dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 break-all text-sm font-mono text-gray-600 mb-4 cursor-text select-all"
+            @click="selectText"
+          >
+            {{ stripeLink }}
+          </div>
+
+          <!-- Manual select input fallback -->
+          <div class="mb-4">
+            <UInput
+              :model-value="stripeLink"
+              readonly
+              icon="i-heroicons-link"
+              :ui="{ trailing: 'pointer-events-auto' }"
+            >
+              <template #trailing>
+                <UButton
+                  color="neutral"
+                  variant="link"
+                  icon="i-heroicons-clipboard-document"
+                  :padded="false"
+                  @click="handleCopyLink"
+                />
+              </template>
+            </UInput>
+          </div>
+
+          <div class="flex gap-2 justify-center">
+            <UButton color="neutral" icon="i-heroicons-clipboard" @click="handleCopyLink">
+              Copiar Link
+            </UButton>
+            <a
+              :href="`https://wa.me/?text=Hola, aquí tienes tu link de pago: ${encodeURIComponent(stripeLink)}`"
+              target="_blank"
+              class="no-underline"
+            >
+              <UButton color="neutral" icon="i-heroicons-chat-bubble-left-right">
+                WhatsApp
+              </UButton>
+            </a>
+          </div>
+
+          <div class="pt-4 border-t border-gray-100 mt-4">
+            <p class="text-xs text-gray-400 mb-2">
+              Orden #{{ lastTransactionNumber }} - Pendiente de Pago
+            </p>
+            <UButton block variant="ghost" color="neutral" @click="showStripeModal = false">
+              Cerrar y Ver Historial
+            </UButton>
+          </div>
         </div>
       </template>
     </UModal>
-
+  </div>
 </template>
-

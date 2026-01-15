@@ -162,6 +162,7 @@ export const useBusinessConfig = () => {
     labels,
     navigation,
     features: computed(() => config.value.customizations.features),
+    transactionsConfig: computed(() => config.value.customizations.transactions),
 
     loadBusinessType
   }
