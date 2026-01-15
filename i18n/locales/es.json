@@ -372,5 +372,30 @@
       "title_new": "Nuevo Usuario",
       "title_edit": "Editar Usuario"
     }
+  },
+  "products": {
+    "title": "Productos",
+    "subtitle": "Gestiona tu inventario y servicios",
+    "buttons": {
+      "new": "Nuevo Producto",
+      "edit": "Editar",
+      "delete": "Eliminar"
+    },
+    "columns": {
+      "name": "Nombre",
+      "sku": "SKU / Código",
+      "category": "Categoría",
+      "price": "Precio",
+      "stock": "Inventario",
+      "type": "Tipo"
+    },
+    "placeholders": {
+      "search": "Buscar productos..."
+    },
+    "types": {
+      "physical": "Producto Físico",
+      "service": "Servicio",
+      "digital": "Digital"
+    }
   }
 }

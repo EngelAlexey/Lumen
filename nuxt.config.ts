@@ -28,8 +28,8 @@ export default defineNuxtConfig({
     supabaseServiceKey: process.env.SUPABASE_SERVICE_KEY,
     stripeSecretKey: process.env.STRIPE_SECRET_KEY,
     stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
-    onvoSecretKey: process.env.ONVO_WEBHOOK_SECRET,
-    onvoWebhookSecret: process.env.ONVO_REAL_WEBHOOK_SECRET,
+    onvoSecretKey: process.env.ONVO_SECRET_KEY || process.env.ONVO_API_KEY,
+    onvoWebhookSecret: process.env.ONVO_WEBHOOK_SECRET,
     onvoPriceStartup: process.env.NUXT_ONVO_PRICE_STARTUP,
 
     stripePriceSolo: process.env.STRIPE_PRICE_SOLO,
