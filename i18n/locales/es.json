@@ -73,7 +73,10 @@
     }
   },
   "common": {
-    "search": "Buscar..."
+    "search": "Buscar...",
+    "daily": "Diario",
+    "weekly": "Semanal",
+    "monthly": "Mensual"
   },
   "messages": {
     "validation": {
@@ -98,7 +101,18 @@
       "require_cash_session": "Este negocio requiere una sesión de caja abierta para ventas presenciales",
       "payment_received": "¡Pago Recibido!",
       "sale_charged": "Venta #{number} ha sido cobrada exitosamente.",
-      "payment_link_error": "Error generando link de pago"
+      "payment_link_error": "Error generando link de pago",
+      "error": "Error al procesar",
+      "payment_required": "Método de pago requerido",
+      "paid": "Pago procesado exitosamente",
+      "status_changed": "Estado actualizado"
+    },
+    "columns": {
+      "date": "Fecha",
+      "items": "Productos",
+      "total": "Total",
+      "status": "Estado",
+      "payment": "Pago"
     },
     "users": {
       "create_error": "Error al crear usuario",
@@ -375,19 +389,58 @@
   },
   "products": {
     "title": "Productos",
-    "subtitle": "Gestiona tu inventario y servicios",
+    "subtitle": "Gestiona tu inventario y servicios ({mode})",
     "buttons": {
       "new": "Nuevo Producto",
+      "new_service": "Nuevo Servicio",
+      "new_dish": "Nuevo Platillo",
       "edit": "Editar",
       "delete": "Eliminar"
     },
     "columns": {
-      "name": "Nombre",
-      "sku": "SKU / Código",
+      "name": "Producto",
+      "sku": "SKU",
       "category": "Categoría",
       "price": "Precio",
-      "stock": "Inventario",
-      "type": "Tipo"
+      "stock": "Stock",
+      "type": "Tipo",
+      "expiration": "Vencimiento",
+      "size": "Talla",
+      "duration": "Duración"
+    },
+    "modal": {
+      "title_edit": "Editar Producto",
+      "title_new": "Nuevo Producto",
+      "section_basic": "Información Básica",
+      "section_specific": "Detalles Específicos"
+    },
+    "form": {
+      "labels": {
+        "name": "Nombre del Producto",
+        "image": "Imagen",
+        "price": "Precio",
+        "stock": "Stock Actual",
+        "cost": "Costo Unitario",
+        "category": "Categoría",
+        "sku": "Código / SKU"
+      },
+      "placeholders": {
+        "name": "Ej. Camisa Talla M",
+        "name_service": "Ej. Corte de Cabello",
+        "price": "0.00",
+        "sku": "GEN-001"
+      },
+      "validation": {
+        "name_min": "El nombre es muy corto"
+      }
+    },
+    "messages": {
+      "image_uploaded": "Imagen subida correctamente",
+      "image_upload_error": "Error al subir imagen",
+      "delete_confirm": "¿Seguro que deseas eliminar este producto?",
+      "deleted": "Producto eliminado",
+      "error": "Error al guardar el producto",
+      "stock_updated": "Stock actualizado"
     },
     "placeholders": {
       "search": "Buscar productos..."
@@ -397,5 +450,24 @@
       "service": "Servicio",
       "digital": "Digital"
     }
+  },
+  "reports": {
+    "title": "Reportes",
+    "subtitle": "Resumen de ventas y rendimiento",
+    "total_sales": "Ventas Totales",
+    "total_orders": "Pedidos Totales",
+    "avg_order": "Ticket Promedio",
+    "sales_trend": "Tendencia de Ventas",
+    "top_products": "Productos Más Vendidos",
+    "sales_by_category": "Ventas por Categoría",
+    "sales_by_payment": "Métodos de Pago",
+    "export": "Exportar",
+    "download_csv": "Descargar CSV",
+    "download_excel": "Descargar Excel",
+    "download_pdf": "Descargar PDF",
+    "no_data": "No hay datos disponibles",
+    "product": "Producto",
+    "quantity": "Cantidad",
+    "revenue": "Ingresos"
   }
 }
